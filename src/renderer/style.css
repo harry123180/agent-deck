@@ -71,10 +71,9 @@ dialog .row input { flex:1; min-width:0; width:auto; }
 
 /* ---- cards ---- */
 .tab { --c:transparent; position:relative; border-left:3px solid transparent; margin-bottom:2px; }
-.tab.colored { border-left-color:var(--c); background:color-mix(in srgb, var(--c) 14%, transparent); }
-.tab.colored:hover { background:color-mix(in srgb, var(--c) 22%, transparent); }
+.tab.colored { border-left-color:var(--c); }
 .tab.active { border-color:#34406a; }
-.tab.active.colored { border-left-color:var(--c); background:color-mix(in srgb, var(--c) 26%, #232a3d); }
+.tab.active.colored { border-left-color:var(--c); background:#26304d; }
 .tab.attn::after { content:""; position:absolute; inset:-1px; border-radius:6px; pointer-events:none; border:1px solid var(--sc); animation:ring 1.6s ease-out infinite; }
 @keyframes ring { 0% { box-shadow:0 0 0 0 color-mix(in srgb, var(--sc) 55%, transparent); } 100% { box-shadow:0 0 0 7px transparent; } }
 .tab .name .rename { width:100%; padding:1px 4px; font:inherit; }
@@ -143,7 +142,7 @@ dialog .row input { flex:1; min-width:0; width:auto; }
 .pane .term { flex:1; min-height:0; position:relative; padding:4px 0 0 6px; }
 .pane .term .xterm-viewport { background:transparent !important; }
 .pane-head { display:none; align-items:center; gap:8px; padding:3px 8px; background:#181b23; border-bottom:1px solid var(--line); cursor:grab; user-select:none; flex:none; }
-.pane.colored .pane-head { border-top:2px solid var(--c); background:color-mix(in srgb, var(--c) 16%, #181b23); }
+.pane.colored .pane-head { border-top:2px solid var(--c); background:#181b23; }
 .pane-head .ind { grid-template-columns:repeat(3, 4px); grid-auto-rows:4px; gap:1.5px; }
 .pane-head .pt { font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .pane-head .pp { color:var(--dim); font-size:11px; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -180,7 +179,7 @@ dialog .row input { flex:1; min-width:0; width:auto; }
 #tabs { padding-bottom:12px; }
 .proj { --c:transparent; --sc:#5b6274; display:flex; align-items:center; gap:7px; padding:6px 6px 6px 5px; margin:6px 0 2px; border-radius:6px; background:#1d212c; border-left:3px solid transparent; cursor:pointer; user-select:none; position:relative; }
 .proj.t-working { --sc:#6ea8fe; } .proj.t-idle { --sc:#4cc38a; } .proj.t-asking { --sc:#f0b429; } .proj.t-error { --sc:#ef5b5b; }
-.proj.colored { border-left-color:var(--c); background:color-mix(in srgb, var(--c) 18%, #1d212c); }
+.proj.colored { border-left-color:var(--c); background:#1d212c; }
 .proj:hover { filter:brightness(1.15); }
 .proj .chev { width:12px; color:var(--dim); font-size:11px; flex:none; }
 .proj .pname { font-weight:600; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -202,7 +201,7 @@ dialog .row input { flex:1; min-width:0; width:auto; }
 /* the card of the window you are typing into: strong highlight + accent bar, so it is obvious at a glance */
 .tab.active { position:relative; background:#26304d; border-color:var(--acc); box-shadow:0 0 0 1px var(--acc), 0 0 14px rgba(110,168,254,.28); }
 .tab.active::before { content:""; position:absolute; left:-7px; top:6px; bottom:6px; width:4px; border-radius:2px; background:var(--acc); }
-.tab.active.colored { border-color:var(--c); box-shadow:0 0 0 1px var(--c), 0 0 14px color-mix(in srgb, var(--c) 35%, transparent); }
+.tab.active.colored { border-color:var(--c); box-shadow:0 0 0 1px var(--c); }
 .tab.active .name { color:#fff; font-weight:700; }
 /* cards shown in the split view but not the one you're typing into */
 .tab.in-view:not(.active)::before { content:""; position:absolute; left:-7px; top:10px; bottom:10px; width:2px; border-radius:1px; background:#4a5a8a; }
