@@ -71,6 +71,11 @@ function ensureTerm(tab) {
     if (e.type !== 'keydown') return true;
     if (e.ctrlKey && !e.shiftKey && e.key === 'c' && term.hasSelection()) { navigator.clipboard.writeText(term.getSelection()); term.clearSelection(); return false; }
     if (e.ctrlKey && e.shiftKey && e.key === 'C') { navigator.clipboard.writeText(term.getSelection()); return false; }
+    // xterm would send a raw Ctrl+V to the shell and swallow the browser paste, so read the clipboard here
+    if (e.ctrlKey && !e.altKey && (e.key === 'v' || e.key === 'V')) {
+      navigator.clipboard.readText().then(text => { if (text) term.paste(text); }).catch(() => { /* clipboard blocked */ });
+      return false;
+    }
     return true;
   });
   new ResizeObserver(() => fitOne(id)).observe(el);
