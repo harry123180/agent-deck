@@ -25,6 +25,26 @@ const cwdIn = text => { const m = /"cwd":"((?:[^"\\]|\\.)*)"/.exec(text); try { 
 // ---- Claude Code ----
 const claudeEncode = cwd => String(cwd).replace(/[^A-Za-z0-9]/g, '-');
 
+// Time of the last user/assistant message inside a transcript. File mtime is not usable: resuming a
+// conversation rewrites its file, which would make an old conversation look newest.
+function lastMessageAt(file, bytes = 256 * 1024) {
+  let fd;
+  try {
+    const st = fs.statSync(file);
+    fd = fs.openSync(file, 'r');
+    const len = Math.min(bytes, st.size);
+    const buf = Buffer.alloc(len);
+    fs.readSync(fd, buf, 0, len, st.size - len);
+    const lines = buf.toString('utf8').split('\n').reverse();
+    for (const l of lines) {
+      if (!/"type":"(user|assistant)"/.test(l)) continue;
+      const m = /"timestamp":"([^"]+)"/.exec(l);
+      if (m) { const t = Date.parse(m[1]); if (t) return t; }
+    }
+  } catch { /* unreadable */ } finally { if (fd !== undefined) try { fs.closeSync(fd); } catch { /* ignore */ } }
+  return 0;
+}
+
 function claudeDirFiles(dir) {
   let names;
   try { names = fs.readdirSync(dir); } catch { return []; }
@@ -33,7 +53,7 @@ function claudeDirFiles(dir) {
     if (!n.endsWith('.jsonl') || !UUID.test(n.slice(0, -6))) continue;   // skips agent-*.jsonl sub-agent logs
     const full = path.join(dir, n);
     let st; try { st = fs.statSync(full); } catch { continue; }
-    out.push({ id: n.slice(0, -6), file: full, lastActive: st.mtimeMs });
+    out.push({ id: n.slice(0, -6), file: full, lastActive: lastMessageAt(full) || st.mtimeMs });
   }
   return out.sort((a, b) => b.lastActive - a.lastActive);
 }

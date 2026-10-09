@@ -964,12 +964,39 @@ async function startAll(stagger) {
   const auto = $('#autostart');
   auto.checked = await api.getAutostart();
   auto.addEventListener('change', async () => { auto.checked = await api.setAutostart(auto.checked); });
+  await followNewerSessions();
   for (const t of state.tabs) ensureTerm(t);
   applyView();
   document.body.classList.toggle('side-collapsed', !!state.settings.sideCollapsed);
   renderRail();
   if (state.settings.startup !== 'lazy') startAll(state.settings.staggerMs ?? 400);
 })();
+
+// A Claude card is bound to one conversation id. If you kept chatting in the same folder in a NEW conversation
+// (e.g. you ran `claude` again in that terminal), the card would reopen the old one and look like it rolled back.
+// On launch: if the newest conversation of the folder is newer than the card's own and no other card uses it, follow it.
+async function followNewerSessions() {
+  const ID = /--(?:resume|session-id)\s+([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i;
+  for (const t of state.tabs) {
+    if (t.agent !== 'claude' || !t.cwd) continue;
+    const bound = (t.resumeCmd || '').match(ID)?.[1];
+    if (!bound) continue;
+    let list = [];
+    try { list = await api.listSessions('claude', t.cwd); } catch { continue; }
+    const newest = list[0];
+    if (!newest || newest.id === bound) continue;
+    const own = list.find(s => s.id === bound);
+    if (own && own.lastActive >= newest.lastActive) continue;
+    const usedElsewhere = state.tabs.some(o => o !== t && `${o.startCmd} ${o.resumeCmd}`.includes(newest.id));
+    if (usedElsewhere) continue;
+    const cmd = `claude --resume ${newest.id}; if ($LASTEXITCODE -ne 0) { claude --session-id ${newest.id} }`;
+    console.info(`[agent-deck] "${t.title}": following newer conversation ${newest.id.slice(0, 8)} (was ${bound.slice(0, 8)})`);
+    t.startCmd = `claude --session-id ${newest.id}`;
+    t.resumeCmd = cmd;
+    t.launched = true;
+  }
+  saveSoon();
+}
 
 // ---------- sidebar nav: gliding hover highlight + summary line ----------
 const glideEl = () => $('#glide');
