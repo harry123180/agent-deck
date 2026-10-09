@@ -1,0 +1,22 @@
+{
+  "name": "agent-deck",
+  "version": "0.1.0",
+  "description": "Tabbed terminal workspace that restores all your agent CLI sessions (claude, codex, opencode, ...) after reboot",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node test/store.test.js"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.11.0",
+    "@xterm/xterm": "^6.0.0",
+    "electron": "^44.7.0",
+    "node-pty": "^1.1.0"
+  },
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "harry123180",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/harry123180/agent-deck.git"
+  }
+}
