@@ -70,7 +70,7 @@ ipcMain.handle('pty:spawn', (_e, { id, cwd, cols, rows, command, shell }) => {
   } catch (err) { return { ok: false, error: String(err.message || err) }; }
   ptys.set(id, p);
   // a pty that was killed and replaced (restart) must not feed its old output or exit into the new one
-  p.onData(d => { if (ptys.get(id) === p && win && !win.isDestroyed()) win.webContents.send('pty:data', id, d); });
+  p.onData(d => { p.lastOutAt = Date.now(); if (ptys.get(id) === p && win && !win.isDestroyed()) win.webContents.send('pty:data', id, d); });
   p.onExit(({ exitCode }) => {
     const current = ptys.get(id) === p;
     if (current) ptys.delete(id);
@@ -92,12 +92,20 @@ app.on('before-quit', e => {
   e.preventDefault();
   quitting = true;
   const live = [...ptys.values()];
-  for (const p of live) { try { p.write('\x03'); } catch { /* already gone */ } }
-  setTimeout(() => { for (const p of live) { try { p.write('\x03'); } catch { /* already gone */ } } }, 400);
-  setTimeout(() => {
+  // wait until the agents stop printing (a reply still being written would be cut off), but never longer than 8s
+  const t0 = Date.now();
+  const quiet = () => live.every(p => Date.now() - (p.lastOutAt || 0) > 1500) || Date.now() - t0 > 8000;
+  const finish = () => {
     for (const p of live) { try { p.kill(); } catch { /* ignore */ } }
     ptys.clear();
     app.quit();
-  }, 2500);
+  };
+  const exitAll = () => {
+    for (const p of live) { try { p.write('\x03'); } catch { /* already gone */ } }
+    setTimeout(() => { for (const p of live) { try { p.write('\x03'); } catch { /* already gone */ } } }, 400);
+    setTimeout(finish, 2500);
+  };
+  const wait = () => (quiet() ? exitAll() : setTimeout(wait, 300));
+  wait();
 });
 app.on('window-all-closed', () => app.quit());
