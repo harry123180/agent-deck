@@ -38,8 +38,8 @@ function claudeDirFiles(dir) {
   return out.sort((a, b) => b.lastActive - a.lastActive);
 }
 
-function claudeSessions(cwd, { home = os.homedir(), configDir = '' } = {}) {
-  const root = path.join(configDir || path.join(home, '.claude'), 'projects');
+function claudeSessions(cwd, { home = os.homedir() } = {}) {
+  const root = path.join(home, '.claude', 'projects');
   let files = claudeDirFiles(path.join(root, claudeEncode(cwd)));
   if (!files.length) {   // folder names that do not encode predictably: look inside the newest file of every project
     let dirs = []; try { dirs = fs.readdirSync(root); } catch { /* none */ }
@@ -103,7 +103,7 @@ const RESUME = {
 
 async function list(agent, cwd, opts) {
   if (!cwd) return [];
-  if (agent === 'claude') return claudeSessions(cwd, opts);   // opts.configDir = another account's folder
+  if (agent === 'claude') return claudeSessions(cwd, opts);
   if (agent === 'codex') return codexSessions(cwd, opts);
   if (agent === 'opencode') return opencodeSessions(cwd);
   return [];

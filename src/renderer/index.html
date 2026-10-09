@@ -10,28 +10,24 @@
 <body>
 <aside id="sidebar">
   <div id="side-head">
+    <button id="btn-side" title="收合側欄 (Ctrl+B)">◀</button>
     <div id="brand">Agent Deck</div>
     <button id="btn-proj" title="新增專案群組（可折疊，可一鍵分割顯示）">▤＋</button>
     <button id="btn-add" title="新增卡片 (Ctrl+T)">＋</button>
   </div>
   <div id="tabs"></div>
   <div id="side-empty" hidden>按右上 <b>＋</b> 新增卡片，<br>或按下方「匯入現有」。</div>
-  <div id="side-tools"><button id="btn-usage" title="查看 token 用量、各專案花費與配額（點進去才會載入）">📊 Token用量</button><button id="btn-acct" title="管理多個 Claude 帳號，達到上限時一鍵切換">👤 帳號</button></div>
   <div id="side-foot">
     <button id="btn-import" title="讀入現有的 cmd / PowerShell / Claude session">⤓ 匯入現有</button>
     <button id="btn-all" title="啟動所有尚未啟動的 tab">▶ 全部啟動</button>
     <label title="登入 Windows 時自動開啟"><input type="checkbox" id="autostart"> 開機自啟</label>
   </div>
 </aside>
+<nav id="rail" title="側欄已收合">
+  <button id="rail-open" title="展開側欄 (Ctrl+B)">▶</button>
+  <div id="rail-list"></div>
+</nav>
 <main id="main">
-  <section id="usage" hidden>
-    <header>
-      <h2>Token用量</h2><div id="u-accts" hidden></div><span id="u-acct"></span><span class="u-sp"></span>
-      <span id="u-status"></span><button id="u-refresh" title="重新執行 ccusage（約 1～2 分鐘）">⟳ 更新</button><button id="u-close" title="關閉 (Esc)">✕</button>
-    </header>
-    <nav id="u-tabs"><button data-t="overview" class="on">總覽</button><button data-t="projects">依專案</button><button data-t="quota">配額</button></nav>
-    <div id="u-body"></div>
-  </section>
   <div id="viewbar" hidden></div>
   <div id="terms"></div>
   <div id="empty">
@@ -48,7 +44,6 @@
       <span class="row"><input id="f-cwd" required placeholder="D:\repos\my-project"><button type="button" id="f-browse">瀏覽…</button></span>
     </label>
     <label>所屬專案群組 <select id="f-project"></select></label>
-    <label id="f-account-row" hidden>Claude 帳號 <select id="f-account"></select></label>
     <label>名稱 <input id="f-title" placeholder="預設為資料夾名稱"></label>
     <label>Agent <select id="f-agent"></select></label>
     <label>首次啟動指令 <input id="f-start" placeholder="例如 claude"></label>
@@ -66,22 +61,12 @@
   <div class="actions"><button type="button" id="imp-all">全選</button><span style="flex:1"></span><button type="button" id="imp-cancel">取消</button><button type="button" id="imp-ok" class="primary">匯入並啟動</button></div>
 </dialog>
 
-<dialog id="dlg-acct">
-  <h3>Claude 帳號</h3>
-  <p class="hint">每個帳號是一個獨立的設定資料夾（<code>CLAUDE_CONFIG_DIR</code>）：登入狀態與對話各自獨立。預設帳號就是你現在的 <code>~/.claude</code>。新增帳號後按「登入」，會開一個終端機讓你登入該帳號一次。</p>
-  <div id="acct-list"></div>
-  <div class="actions"><button type="button" id="acct-add">＋ 新增帳號</button><span style="flex:1"></span><button type="button" id="acct-close" class="primary">完成</button></div>
-  <label class="chk acct-auto"><input type="checkbox" id="acct-auto"> 偵測到用量上限時，<b>自動</b>切換到另一個帳號並接續對話（預設關閉）</label>
-</dialog>
 
 <div id="menu" hidden></div>
 <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
 <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
 <script src="status.js"></script>
 <script src="layouts.js"></script>
-<script src="usage-calc.js"></script>
 <script src="renderer.js"></script>
-<script src="accounts-ui.js"></script>
-<script src="usage.js"></script>
 </body>
 </html>

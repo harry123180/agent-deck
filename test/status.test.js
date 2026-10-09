@@ -15,17 +15,5 @@ assert.strictEqual(k('', '   ', ''), null);
 assert.strictEqual(k('✻ Working… (3s)', 'Do you want to proceed?'), 'asking');
 assert.strictEqual(k('API Error: x', 'a', 'b', 'c', 'd', 'e', 'f', 'g'), null);
 
-// ---- plan limit (wording from the Claude Code binary) ----
-assert.strictEqual(k('  ⎿  Usage limit reached', '', '> '), 'limit');
-assert.strictEqual(k('Usage limit reached again', 'continuing automatically  esc to cancel'), 'limit');   // wins over the "esc to cancel" prompt
-assert.strictEqual(k("You've hit your session limit · resets 3pm (Asia/Taipei)"), 'limit');
-assert.strictEqual(k('5-hour limit reached ∙ resets 3pm'), 'limit');
-assert.strictEqual(k('Weekly limit reached - resets Mon 9am'), 'limit');
-assert.strictEqual(k('Opus limit reached'), 'limit');
-assert.strictEqual(k("You're out of usage credits. Run /usage-credits to keep using"), 'limit');
-assert.strictEqual(k('API Error: 429 rate_limit_error'), 'error');                  // a plain rate-limit hiccup is not an exhausted plan
-assert.strictEqual(k("You've used 80% of your session limit"), null);               // warning only, nothing to switch yet
-assert.strictEqual(k('Concurrent subagent limit reached. You can run 3 subagents at once.'), null);   // unrelated "limit reached"
-assert.strictEqual(k('Context limit reached', '> '), null);
-assert.strictEqual(k('Usage limit reached', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'), null);           // old scrollback far above the prompt is ignored
+
 console.log('status tests passed');

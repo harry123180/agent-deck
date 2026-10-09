@@ -56,7 +56,7 @@ function ensureTerm(tab) {
   pane.className = 'pane';
   pane.style.display = 'none';
   pane.innerHTML = `<div class="pane-head" draggable="true">${grid9()}<span class="pt"></span><span class="acct-badge" hidden></span><span class="pp"></span>` +
-    '<span class="pstat"><b></b><span></span></span><button class="pclose" title="從分割畫面移除">✕</button></div><div class="term"></div><div class="zoom-toast"></div><div class="limit-banner" hidden></div>';
+    '<span class="pstat"><b></b><span></span></span><button class="pclose" title="從分割畫面移除">✕</button></div><div class="term"></div><div class="zoom-toast"></div>';
   const el = pane.querySelector('.term');
   $('#terms').appendChild(pane);
 
@@ -119,7 +119,7 @@ async function startTab(tab, { fresh = false } = {}) {
   setOverlay(tab, '');
   if (fresh) r.term.reset();
   const command = launchCommand(tab);
-  const res = await api.spawn({ id: tab.id, cwd: tab.cwd, cols: r.term.cols, rows: r.term.rows, command, shell: state.settings.shell, env: accountEnv(tab) });
+  const res = await api.spawn({ id: tab.id, cwd: tab.cwd, cols: r.term.cols, rows: r.term.rows, command, shell: state.settings.shell });
   if (!res.ok) {
     r.status = 'dead';
     setOverlay(tab, `<div>無法啟動 shell</div><small>${esc(res.error)}</small><button>重試</button>`, () => startTab(tab));
@@ -458,7 +458,7 @@ function updateCard(t, now) {
   if (t.color) d.style.setProperty('--c', t.color); else d.style.removeProperty('--c');
   if (renamingId !== t.id) setText(d.querySelector('.name'), t.title);
   setText(d.querySelector('.sub'), `${AGENTS[t.agent]?.label || t.agent} · ${t.cwd}`);
-  const label = r?.limitHit ? '已達上限' : STATE_LABEL[st];
+  const label = STATE_LABEL[st];
   const time = st === 'working' ? mmss(now - (r.workStart || now)) : (st === 'asleep' ? '' : ago(r?.since || t.lastActive));
   setText(d.querySelector('.stat b'), label);
   setText(d.querySelector('.stat span'), time);
@@ -474,7 +474,6 @@ function updateCard(t, now) {
     setText(p.querySelector('.pstat b'), label);
     setText(p.querySelector('.pstat span'), time);
   }
-  accountsUiUpdate(t, r, d);
 }
 
 function updateHead(p, tabs, now) {
@@ -505,9 +504,42 @@ function revealActive() {
   el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
+// ---------- collapsible sidebar ----------
+function setSide(collapsed) {
+  document.body.classList.toggle('side-collapsed', collapsed);
+  state.settings.sideCollapsed = collapsed;
+  renderRail();
+  saveSoon();
+  requestAnimationFrame(fitAll);            // the terminal area changed width
+}
+const toggleSide = () => setSide(!document.body.classList.contains('side-collapsed'));
+$('#btn-side').addEventListener('click', () => toggleSide());
+$('#rail-open').addEventListener('click', () => toggleSide());
+
+// one dot per card in the rail, same order as the sidebar; click = switch to that card
+function renderRail() {
+  const list = $('#rail-list');
+  if (!list) return;
+  const sig = orderedTabs().map(t => `${t.id}:${terms.get(t.id)?.state || 'asleep'}:${t.id === state.activeId ? 1 : 0}:${state.view.ids.includes(t.id) ? 1 : 0}`).join('|');
+  if (list.dataset.sig === sig) return;
+  list.dataset.sig = sig;
+  list.innerHTML = '';
+  let lastProj = null;
+  for (const t of orderedTabs()) {
+    if ((t.projectId || '') !== lastProj) { lastProj = t.projectId || ''; if (list.children.length) { const sep = document.createElement('div'); sep.className = 'rail-sep'; list.appendChild(sep); } }
+    const b = document.createElement('button');
+    const st = terms.get(t.id)?.state || 'asleep';
+    b.className = `rail-dot s-${st}${t.id === state.activeId ? ' active' : ''}`;
+    b.title = `${t.title} · ${STATE_LABEL[st]}`;
+    b.addEventListener('click', () => activate(t.id));
+    list.appendChild(b);
+  }
+}
+
 function renderTabs() {
   const box = $('#tabs');
   const now = Date.now();
+  renderRail();
   state.tabs.forEach(t => updateCard(t, now));
   const desired = [];
   for (const p of state.projects) {
@@ -628,7 +660,6 @@ function showCardMenu(x, y, tab) {
   ];
   for (const p of state.projects) if (p.id !== tab.projectId) items.push([`移到專案：${p.name}`, () => { tab.projectId = p.id; p.collapsed = false; renderTabs(); saveSoon(); }]);
   if (tab.projectId) items.push(['移出專案', () => { tab.projectId = ''; renderTabs(); saveSoon(); }]);
-  items.push(...accountMenuItems(tab));
   items.push(
     ['複製此 tab', () => { const c = { ...tab, id: crypto.randomUUID(), title: tab.title + ' (2)' }; state.tabs.splice(state.tabs.indexOf(tab) + 1, 0, c); activate(c.id); startTab(c); }],
     ['關閉 tab', () => closeTab(tab), 'danger'],
@@ -665,8 +696,6 @@ function computeState(r) {
   if (r.status === 'dead') return 'error';
   const now = Date.now();
   const det = Status.detect(bottomLines(r.term, 40));
-  r.limitHit = false;
-  if (det.kind === 'limit') { r.limitHit = true; r.limitLine = det.line; return 'error'; }   // stays until the text leaves the screen
   if (det.kind === 'error') r.lastErrLine = det.line;
   if (det.kind === 'asking') return 'asking';
   if (det.kind === 'working') return 'working';
@@ -687,7 +716,6 @@ function tickStates() {
       r.calm = (r.calm || 0) + 1;
       if (r.calm < 3) next = 'working';
     } else r.calm = 0;
-    if (r.limitHit) { if (!r.limitSeen) { r.limitSeen = true; limitAt[t.accountId] = now; } autoSwitchCheck(t, r, now); } else r.limitSeen = false;
     if (next === prev) continue;
     r.state = next; r.since = now;
     if (next === 'working') r.workStart = now;
@@ -752,7 +780,7 @@ async function detectSession({ force = false } = {}) {
     return;
   }
   hint.textContent = '偵測此資料夾的對話…';
-  const list = await api.listSessions(agent, cwd, dialogAccountDir());   // conversations of the chosen account
+  const list = await api.listSessions(agent, cwd);
   if (token !== detectToken) return;                     // path/agent changed while waiting
   const write = (start, resume) => {
     if (!cmdDirty || force) { $('#f-start').value = start; $('#f-resume').value = resume; cmdDirty = false; }
@@ -789,7 +817,6 @@ function openDialog(tab, projectId = '') {
   $('#f-auto').checked = tab ? tab.autoRun !== false : true;
   $('#f-project').innerHTML = '<option value="">（不分組）</option>' + state.projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
   $('#f-project').value = tab ? (tab.projectId || '') : projectId;
-  fillAccountSelect(tab ? tab.accountId : defaultAccountFor(projectId));
   refreshTitlePlaceholder();
   $('#dlg').showModal();
   $('#f-cwd').focus();
@@ -825,7 +852,7 @@ $('#dlg-form').addEventListener('submit', () => {
   const data = {
     cwd, title: $('#f-title').value.trim() || autoTitle(cwd, $('#f-project').value), agent: $('#f-agent').value,
     startCmd: $('#f-start').value.trim(), resumeCmd: $('#f-resume').value.trim(), autoRun: $('#f-auto').checked,
-    projectId: $('#f-project').value, accountId: $('#f-account').value || 'default',
+    projectId: $('#f-project').value,
   };
   if (editing) { Object.assign(editing, data); renderTabs(); saveSoon(); return; }
   const tab = { id: crypto.randomUUID(), launched: false, lastActive: Date.now(), color: '', fontSize: 0, ...data };
@@ -870,7 +897,7 @@ $('#imp-ok').addEventListener('click', () => {
     const preset = AGENTS[c.agent] || AGENTS.shell;
     const tab = {
       id: crypto.randomUUID(), title: baseName(c.cwd), cwd: c.cwd, agent: c.agent in AGENTS ? c.agent : 'shell',
-      startCmd: preset.start, resumeCmd: preset.resume, autoRun: true, color: '', projectId: '', accountId: 'default', fontSize: 0,
+      startCmd: preset.start, resumeCmd: preset.resume, autoRun: true, color: '', projectId: '', fontSize: 0,
       launched: c.agent !== 'shell',            // these sessions already exist -> go straight to resume
       lastActive: c.lastActive,
     };
@@ -899,7 +926,7 @@ window.addEventListener('keydown', e => {
   else if (e.ctrlKey && !e.altKey && (e.key === '=' || e.key === '+')) zoomTab(tabById(state.activeId), 1);
   else if (e.ctrlKey && !e.altKey && (e.key === '-' || e.key === '_')) zoomTab(tabById(state.activeId), -1);
   else if (e.ctrlKey && !e.altKey && e.key === '0') zoomTab(tabById(state.activeId), 0, true);
-  else if (e.ctrlKey && !e.shiftKey && e.key === 'b') document.body.classList.toggle('no-side');
+  else if (e.ctrlKey && !e.shiftKey && e.key === 'b') toggleSide();
   else if (e.key === 'F2' && state.activeId) renameTab(tabById(state.activeId));
   else if (e.altKey && /^[1-9]$/.test(e.key) && order[+e.key - 1]) activate(order[+e.key - 1]);
   else handled = false;
@@ -931,5 +958,7 @@ async function startAll(stagger) {
   auto.addEventListener('change', async () => { auto.checked = await api.setAutostart(auto.checked); });
   for (const t of state.tabs) ensureTerm(t);
   applyView();
+  document.body.classList.toggle('side-collapsed', !!state.settings.sideCollapsed);
+  renderRail();
   if (state.settings.startup !== 'lazy') startAll(state.settings.staggerMs ?? 400);
 })();

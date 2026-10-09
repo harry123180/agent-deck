@@ -54,19 +54,4 @@ assert.strictEqual(AGENTS.agy.resume, 'agy --continue');
 assert.strictEqual(AGENTS.codex.resume, 'codex resume --last');
 assert.strictEqual(AGENTS.opencode.resume, 'opencode --continue');
 
-// ---- multiple Claude accounts ----
-const d0 = store.normalize({});
-assert.strictEqual(d0.accounts.length, 1);                              // the default account always exists
-assert.strictEqual(d0.accounts[0].id, 'default'); assert.strictEqual(d0.accounts[0].configDir, '');
-assert.strictEqual(d0.settings.autoSwitch, false);                       // auto switching is opt-in
-const withB = store.normalize({
-  accounts: [{ id: 'acct-b', name: 'Work', configDir: ' C:/x/b ', color: '#f59e42' }, { id: 'default', name: 'Main', configDir: 'EVIL' }, { name: 'no id' }, null],
-  tabs: [{ cwd: 'a', accountId: 'acct-b' }, { cwd: 'b', accountId: 'deleted' }, { cwd: 'c' }],
-});
-assert.deepStrictEqual(withB.accounts.map(a => a.id), ['default', 'acct-b']);            // default first, junk dropped
-assert.strictEqual(withB.accounts[0].name, 'Main');                                       // default may be renamed ...
-assert.strictEqual(withB.accounts[0].configDir, '');                                      // ... but always stays ~/.claude
-assert.strictEqual(withB.accounts[1].configDir, 'C:/x/b');
-assert.deepStrictEqual(withB.tabs.map(t => t.accountId), ['acct-b', 'default', 'default']);   // dangling / missing -> default
-assert.strictEqual(store.normalize({ accounts: [{ id: 'z', name: 'Z' }] }).accounts[1].color.startsWith('#'), true);
 console.log('store tests passed');

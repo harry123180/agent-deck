@@ -29,15 +29,6 @@
     /^\s*(fatal|panic|error):|traceback \(most recent|unhandled (exception|rejection)|segmentation fault/i,
   ];
 
-  // Plan limit reached (5-hour "session", weekly, per-model, credits). Wording taken from the Claude Code binary.
-  const LIMIT = [
-    /usage limit reached/i,
-    /(?:session|weekly|5-?hour|opus|sonnet|fable|usage credit|fast)\s+limit\s+(?:reached|hit|exceeded)/i,
-    /(?:you(?:'|’)ve|you have)\s+hit\s+your\b.{0,30}\blimit/i,
-    /out of usage credits/i,
-    /limit reached\W{0,4}(?:resets?|will reset)/i,
-  ];
-
   const tail = (lines, n) => lines.filter(l => l.trim()).slice(-n);
   const hit = (list, lines) => {
     for (const l of lines) for (const re of list) if (re.test(l)) return l.trim();
@@ -45,9 +36,6 @@
   };
 
   function detect(lines) {
-    // an exhausted plan is the most actionable state: look at the very last lines only, before anything else
-    const lim = hit(LIMIT, tail(lines, 8));
-    if (lim) return { kind: 'limit', line: lim };
     const t12 = tail(lines, 12);
     const ask = hit(ASK, t12);
     if (ask) return { kind: 'asking', line: ask };

@@ -5,15 +5,12 @@ const crypto = require('crypto');
 const { AGENTS } = require('./agents');
 
 const VERSION = 1;
-const ACCOUNT_COLORS = ['#6ea8fe', '#f59e42', '#4cc38a', '#f472b6', '#a78bfa'];
-const defaultAccount = () => ({ id: 'default', name: '帳號 A', configDir: '', email: '', color: ACCOUNT_COLORS[0] });
 const defaults = () => ({
   version: VERSION,
   activeId: null,
   projects: [],
-  accounts: [defaultAccount()],
   view: { ids: [], layout: 'auto', cols: [], rows: [] },
-  settings: { startup: 'all', staggerMs: 400, shell: 'auto', fontSize: 14, autoSwitch: false },
+  settings: { startup: 'all', staggerMs: 400, shell: 'auto', fontSize: 14 },
   tabs: [],
 });
 
@@ -33,7 +30,6 @@ function newTab(partial = {}) {
     autoRun: partial.autoRun !== false,
     color: validColor(partial.color),
     projectId: partial.projectId || '',
-    accountId: partial.accountId || 'default',   // which Claude account (CLAUDE_CONFIG_DIR) this card runs under
     fontSize: Number.isFinite(partial.fontSize) ? Math.min(40, Math.max(8, Math.round(partial.fontSize))) : 0, // 0 = default size
     launched: !!partial.launched,   // true once the start command has run at least once
     lastActive: partial.lastActive || 0,
@@ -47,15 +43,7 @@ function normalize(raw) {
   s.projects = (Array.isArray(raw.projects) ? raw.projects : []).filter(p => p && p.id).map(p => ({
     id: String(p.id), name: String(p.name || '專案'), color: validColor(p.color), collapsed: !!p.collapsed,
   }));
-  // accounts: the default one (~/.claude) always exists and comes first
-  const accts = (Array.isArray(raw.accounts) ? raw.accounts : []).filter(a => a && a.id && a.id !== 'default').slice(0, 8).map((a, i) => ({
-    id: String(a.id), name: String(a.name || `帳號 ${String.fromCharCode(66 + i)}`).slice(0, 40), configDir: String(a.configDir || '').trim(),
-    email: String(a.email || '').trim(), color: validColor(a.color) || ACCOUNT_COLORS[(i + 1) % ACCOUNT_COLORS.length],
-  }));
-  const dflt = (Array.isArray(raw.accounts) ? raw.accounts : []).find(a => a && a.id === 'default');
-  s.accounts = [{ ...defaultAccount(), ...(dflt ? { name: String(dflt.name || '帳號 A').slice(0, 40), email: String(dflt.email || '').trim(), color: validColor(dflt.color) || ACCOUNT_COLORS[0] } : {}), configDir: '' }, ...accts];
   s.tabs = (Array.isArray(raw.tabs) ? raw.tabs : []).filter(t => t && t.cwd !== undefined).map(newTab);
-  for (const t of s.tabs) if (!s.accounts.some(a => a.id === t.accountId)) t.accountId = 'default';
   for (const t of s.tabs) if (t.projectId && !s.projects.some(p => p.id === t.projectId)) t.projectId = '';
   s.activeId = s.tabs.some(t => t.id === raw.activeId) ? raw.activeId : (s.tabs[0]?.id ?? null);
   const layout = typeof raw.view?.layout === 'string' && /^[A-Za-z0-9-]{1,24}$/.test(raw.view.layout) ? raw.view.layout : 'auto';
