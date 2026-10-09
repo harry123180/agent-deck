@@ -3,7 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const S = require('../src/sessions');
+const S = require('../src/main/sessions');
 
 const home = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-sess-'));
 const cwd = String.raw`D:\Work\My Project`;

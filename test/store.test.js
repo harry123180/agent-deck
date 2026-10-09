@@ -3,8 +3,8 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const store = require('../src/store');
-const { launchCommand } = require('../src/agents');
+const store = require('../src/main/store');
+const { launchCommand } = require('../src/main/agents');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-'));
 const file = path.join(dir, 'state.json');
@@ -48,7 +48,7 @@ assert.deepStrictEqual(store.normalize({ view: { rows: [1, -1] } }).view.rows, [
 assert.strictEqual(store.newTab({ cwd: 'x', fontSize: 99 }).fontSize, 40);
 assert.strictEqual(store.newTab({ cwd: 'x' }).fontSize, 0);
 // resume commands must be real flags of each CLI (verified against --help)
-const { AGENTS } = require('../src/agents');
+const { AGENTS } = require('../src/main/agents');
 assert.strictEqual(AGENTS.gemini.resume, 'gemini --resume latest');   // bare --resume needs a value
 assert.strictEqual(AGENTS.agy.resume, 'agy --continue');
 assert.strictEqual(AGENTS.codex.resume, 'codex resume --last');

@@ -37,10 +37,10 @@ function cleanEnv(e) {
 
 function createWindow() {
   win = new BrowserWindow({
-    width: 1400, height: 900, backgroundColor: '#12141a', title: 'Agent Deck', icon: path.join(__dirname, '..', 'assets', 'icon.ico'),
+    width: 1400, height: 900, backgroundColor: '#12141a', title: 'Agent Deck', icon: path.join(__dirname, '..', '..', 'assets', 'icon.ico'),
     webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true, nodeIntegration: false },
   });
-  win.loadFile(path.join(__dirname, 'renderer', 'index.html'));
+  win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
   win.webContents.on('before-input-event', (e, i) => {
     if (i.type === 'keyDown' && i.control && i.shift && i.key.toUpperCase() === 'I') win.webContents.toggleDevTools();
   });

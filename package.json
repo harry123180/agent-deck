@@ -2,7 +2,7 @@
   "name": "agent-deck",
   "version": "0.1.0",
   "description": "Tabbed terminal workspace that restores all your agent CLI sessions (claude, codex, opencode, ...) after reboot",
-  "main": "src/main.js",
+  "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
     "test": "node test/store.test.js"

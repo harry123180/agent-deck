@@ -3,7 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { nearestExisting } = require('../src/paths');
+const { nearestExisting } = require('../src/main/paths');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-paths-'));
 const sub = path.join(dir, 'proj', 'src');

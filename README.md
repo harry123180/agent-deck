@@ -8,6 +8,28 @@ tmux 的 session 活在 process 裡，**重開機一樣會消失**。真正需�
 所以 Agent Deck 把工作區存成 JSON（`%APPDATA%\agent-deck\state.json`，原子寫入 + `.bak` 備份），
 每次啟動重建 PTY（ConPTY）並輸入 resume 指令。
 
+## 專案結構
+
+```
+src/
+  main/        Electron 主程序：PTY、狀態存檔、帳號、用量、session 掃描（Node，無畫面）
+    main.js        入口與 IPC
+    preload.js     安全橋接（contextBridge），畫面只能透過它呼叫主程序
+    store.js       工作區 JSON 讀寫（原子寫入 + .bak）與資料正規化
+    agents.js      各 agent CLI 的啟動 / resume 指令
+    accounts.js    多 Claude 帳號（CLAUDE_CONFIG_DIR）
+    sessions.js    各 agent 最近對話 id 的讀取
+    importer.js    匯入現有 cmd / PowerShell 視窗（scan.ps1）
+    usage.js       ccusage 用量（含快取）
+    paths.js       路徑工具
+  renderer/    畫面（HTML / CSS / 純瀏覽器 JS，無打包工具）
+    index.html renderer.js style.css layouts.js status.js usage*.js accounts-ui.js
+test/          單元測試（node test/<name>.test.js）
+scripts/       開發用腳本（make_icon.py 產生圖示）
+assets/        圖示
+start.bat      Windows 啟動捷徑
+```
+
 ## 使用
 ```
 npm install

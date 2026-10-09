@@ -3,8 +3,8 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const A = require('../src/accounts');
-const { claudeEncode } = require('../src/sessions');
+const A = require('../src/main/accounts');
+const { claudeEncode } = require('../src/main/sessions');
 
 const root = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-acct-'));
 const dirA = path.join(root, '.claude'), dirB = path.join(root, '.claude-b');
