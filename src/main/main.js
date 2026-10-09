@@ -84,5 +84,20 @@ ipcMain.on('pty:resize', (_e, id, cols, rows) => { try { ptys.get(id)?.resize(Ma
 ipcMain.on('pty:kill', (_e, id) => { const p = ptys.get(id); ptys.delete(id); try { p?.kill(); } catch { /* already dead */ } });
 
 app.whenReady().then(() => { Menu.setApplicationMenu(null); createWindow(); });
-app.on('before-quit', () => { for (const p of ptys.values()) { try { p.kill(); } catch { /* ignore */ } } ptys.clear(); });
+// Closing mid-conversation used to kill every shell outright, so Claude Code never flushed the transcript and the
+// next resume found nothing. Ask each agent to exit normally first (Ctrl+C twice), give it time to save, then kill.
+let quitting = false;
+app.on('before-quit', e => {
+  if (quitting || ptys.size === 0) return;
+  e.preventDefault();
+  quitting = true;
+  const live = [...ptys.values()];
+  for (const p of live) { try { p.write('\x03'); } catch { /* already gone */ } }
+  setTimeout(() => { for (const p of live) { try { p.write('\x03'); } catch { /* already gone */ } } }, 400);
+  setTimeout(() => {
+    for (const p of live) { try { p.kill(); } catch { /* ignore */ } }
+    ptys.clear();
+    app.quit();
+  }, 2500);
+});
 app.on('window-all-closed', () => app.quit());
