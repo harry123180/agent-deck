@@ -556,8 +556,11 @@ function renderTabs() {
   const loose = tabsOf('');
   if (state.projects.length && loose.length) desired.push(looseLabel());
   loose.forEach(t => desired.push(cardFor(t)));
-  desired.forEach((el, i) => { if (box.children[i] !== el) box.insertBefore(el, box.children[i] || null); });
-  while (box.children.length > desired.length) box.lastElementChild.remove();
+  // the glide highlight lives in #tabs too: never count it as a row
+  const rows = () => [...box.children].filter(c => c.id !== 'glide');
+  desired.forEach((el, i) => { const cur = rows(); if (cur[i] !== el) box.insertBefore(el, cur[i] || null); });
+  while (rows().length > desired.length) rows().pop().remove();
+  renderSummary();
   for (const [id, d] of cardEls) if (!tabById(id)) { d.remove(); cardEls.delete(id); }
   for (const [id, h] of headEls) if (!projById(id)) { h.remove(); headEls.delete(id); }
   revealActive();
@@ -967,3 +970,30 @@ async function startAll(stagger) {
   renderRail();
   if (state.settings.startup !== 'lazy') startAll(state.settings.staggerMs ?? 400);
 })();
+
+// ---------- sidebar nav: gliding hover highlight + summary line ----------
+const glideEl = () => $('#glide');
+function moveGlide(row) {
+  const g = glideEl(); if (!g) return;
+  if (!row) { g.classList.remove('on'); return; }
+  // measured against the scrolling list itself, so it stays correct while the list is scrolled
+  const box = $('#tabs'), top = row.getBoundingClientRect().top - box.getBoundingClientRect().top + box.scrollTop;
+  g.style.transform = `translateY(${top}px)`;
+  g.style.height = `${row.getBoundingClientRect().height}px`;
+  g.classList.add('on');
+}
+$('#tabs').addEventListener('pointerover', e => {
+  const row = e.target.closest('#tabs > .tab, #tabs > .proj');
+  if (row) moveGlide(row);
+});
+$('#tabs').addEventListener('mouseleave', () => moveGlide(null));
+
+function renderSummary() {
+  const el = $('#side-sum'); if (!el) return;
+  const all = state.tabs.length;
+  const need = state.tabs.filter(t => ['asking', 'error'].includes(terms.get(t.id)?.state)).length;
+  const working = state.tabs.filter(t => terms.get(t.id)?.state === 'working').length;
+  el.innerHTML = `<span><b>${all}</b> 張卡片</span>` +
+    (working ? `<span><b>${working}</b> 工作中</span>` : '') +
+    (need ? `<span class="need">${need} 需要你</span>` : '');
+}

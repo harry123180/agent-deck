@@ -211,7 +211,7 @@ dialog .row input { flex:1; min-width:0; width:auto; }
 .proj.has-active .pname { color:#fff; }
 #side-empty { padding:24px 16px; color:var(--dim); text-align:center; line-height:1.8; }
 /* collapsed sidebar: a 44px rail with one status dot per card */
-body.side-collapsed #sidebar { display:none; }
+
 #rail { display:none; width:44px; min-width:44px; flex-direction:column; align-items:center; gap:6px; padding:8px 0; background:var(--panel); border-right:1px solid var(--line); overflow-y:auto; }
 body.side-collapsed #rail { display:flex; }
 #rail button#rail-open { width:30px; padding:4px 0; font-size:14px; text-align:center; }
@@ -239,3 +239,17 @@ body.side-collapsed #rail { display:flex; }
 
 /* tag chips (used by the import dialog) */
 .tag { font-size:11px; padding:1px 8px; border-radius:9px; background:#2a3150; color:var(--acc); }
+
+/* ================= sidebar nav (glide + animated collapse) ================= */
+#sidebar { transition: width .28s cubic-bezier(.2,.7,.2,1), min-width .28s cubic-bezier(.2,.7,.2,1), border-color .28s; overflow:hidden; }
+body.side-collapsed #sidebar { width:0; min-width:0; border-right-width:0; }
+#tabs { position:relative; }
+/* one highlight that glides between rows instead of each row flashing on its own */
+#glide { position:absolute; left:4px; right:4px; top:0; height:0; border-radius:8px; background:rgba(110,168,254,.10); border:1px solid rgba(110,168,254,.18); pointer-events:none; opacity:0; transition: transform .26s cubic-bezier(.2,.7,.2,1), height .26s cubic-bezier(.2,.7,.2,1), opacity .18s; z-index:0; }
+#glide.on { opacity:1; }
+#tabs > .tab, #tabs > .proj, #tabs > .loose-label { position:relative; z-index:1; }
+#tabs > .tab:hover, #tabs > .proj:hover { background:transparent; filter:none; }
+/* summary line at the bottom of the sidebar */
+#side-sum { padding:7px 12px; border-top:1px solid var(--line); color:var(--dim); font-size:11px; display:flex; gap:10px; align-items:center; }
+#side-sum b { color:var(--fg); font-weight:600; }
+#side-sum .need { color:var(--warn); font-weight:600; }
