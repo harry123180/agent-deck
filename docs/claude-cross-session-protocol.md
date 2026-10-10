@@ -57,7 +57,7 @@
 | `rename` | 改變收件 session 的名稱 | `name` | 實測：收件 session 註冊表的 `name` 隨即改變（Agent Deck 的收件匣不接受別人替它改名） |
 | `unyield_artifact_replies`、`artifact_replies_yielded` | Artifact 相關回覆的交接 | — | 程式觀察（Agent Deck 未使用） |
 
-`dropped` 的原因（程式觀察）：送太快（rate-limited）、轉送迴圈（hop-loop / hop-runaway）、佇列滿（queue-full）、與上一則完全相同。實測：連送兩則相同訊息，第二則收到 `dropped`；對方忙碌時連送 40 則，有 2 則收到 `dropped`（`drop_reason: rate-limited`）；對閒置 session 連送 15 則未觸發限速。`queue-full` 未能觸發：對略過權限模式的 session 同時送 60 則，全部進入「保留」而非一般佇列。
+`dropped` 的原因（程式觀察）：送太快（rate-limited）、轉送迴圈（hop-loop / hop-runaway）、佇列滿（queue-full）、與上一則完全相同。實測：連送兩則相同訊息，第二則收到 `dropped`；對方忙碌時連送 40 則，有 2 則收到 `dropped`（`drop_reason: rate-limited`）；對閒置 session 連送 15 則未觸發限速。`queue-full` 未能觸發：對略過權限模式的 session 同時送 60 則，全部進入「保留」而非一般佇列；對忙碌中的一般模式 session 同時送 150 則，只有 2 則因限速被丟棄，其餘都排入佇列（佇列容量超過 148 則）。一張 `dropped` 回執可用 `dropped_msg_ids` 同時列出多則被丟棄的訊息（實測）。
 
 ## 4. 收件端的處理規則
 
@@ -68,6 +68,7 @@
 | 使用者在審閱框選 Deny | 寄件人收到 `denied` 回執 | 實測 |
 | 使用者選 Deliver | 訊息送進 Claude，被正常回應 | 實測 |
 | 被保留但沒人審閱 | **300 秒**後寄件人收到 `expired` | 實測 |
+| 在審閱框按 Esc 關閉 | 視同拒絕，寄件人收到 `denied` | 實測 |
 | 被保留後使用者選 Deliver | 寄件人收到 `delivered`（「先前被保留的訊息已核准並放行」） | 實測 |
 | 收件端設定 `crossSessionInbound: hold` | 訊息被保留；實測 7 分鐘內未過期（與上一列不同） | 實測 |
 | 使用者設定 `crossSessionInbound` | `accept` / `hold`；組織與專案層級的設定可強制 `hold` | 程式觀察 |
