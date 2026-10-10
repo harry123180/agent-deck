@@ -1,9 +1,9 @@
 'use strict';
-const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu, clipboard } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
-const { execFileSync } = require('child_process');
+const { execFileSync, execFile } = require('child_process');
 const pty = require('node-pty');
 const store = require('./store');
 const importer = require('./importer');
@@ -45,6 +45,40 @@ ipcMain.handle('sessions:list', async (_e, agent, cwd) => {
   return list.map(s => ({ ...s, command: cmd ? cmd(s.id) : '' }));
 });
 ipcMain.handle('agents:get', () => AGENTS);
+
+// What to paste into a terminal card: text (Electron), or — for files copied in Explorer and screenshots —
+// Windows PowerShell reads the clipboard (this Electron build cannot read those formats). Screenshots are saved to a temp PNG.
+const quotePath = p => (/[\s'"&()]/.test(p) ? `"${p.replace(/"/g, '')}"` : p);
+function clipboardNonText(dir) {
+  return new Promise(resolve => {
+    const script = [
+      '[Console]::OutputEncoding=[Text.Encoding]::UTF8',
+      'Add-Type -AssemblyName System.Windows.Forms,System.Drawing',
+      '$files = Get-Clipboard -Format FileDropList',
+      'if ($files) { $files | ForEach-Object { $_.FullName }; exit 0 }',
+      'if ([System.Windows.Forms.Clipboard]::ContainsImage()) {',
+      `  New-Item -ItemType Directory -Force -Path '${dir.replace(/'/g, "''")}' | Out-Null`,
+      `  $p = Join-Path '${dir.replace(/'/g, "''")}' ('paste-' + [DateTime]::Now.ToString('yyyyMMdd-HHmmss-fff') + '.png')`,
+      '  [System.Windows.Forms.Clipboard]::GetImage().Save($p, [System.Drawing.Imaging.ImageFormat]::Png)',
+      '  $p',
+      '}',
+    ].join('; ');
+    execFile('powershell.exe', ['-NoProfile', '-STA', '-Command', script], { timeout: 8000, encoding: 'utf8', windowsHide: true },
+      (err, stdout) => resolve(err ? [] : String(stdout).split(/\r?\n/).map(s => s.trim()).filter(Boolean)));
+  });
+}
+ipcMain.handle('clipboard:paste', async () => {
+  try {
+    const text = await clipboard.readText();
+    if (typeof text === 'string' && text) return { text };
+    const items = await clipboardNonText(path.join(os.tmpdir(), 'agent-deck', 'paste'));
+    if (items.length) return { text: items.map(quotePath).join(' ') };
+  } catch (err) {
+    console.error('clipboard paste failed:', err && err.message);
+  }
+  return { text: '' };
+});
+
 ipcMain.handle('state:load', () => store.load(STATE_FILE()));
 ipcMain.on('state:save', (_e, state) => { try { store.save(STATE_FILE(), state); } catch (err) { console.error('save failed', err); } });
 ipcMain.handle('dialog:folder', async (_e, start) => {

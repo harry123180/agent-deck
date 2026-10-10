@@ -3,6 +3,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('deck', {
   getAgents: () => ipcRenderer.invoke('agents:get'),
+  clipboardPaste: () => ipcRenderer.invoke('clipboard:paste'),
   listSessions: (agent, cwd) => ipcRenderer.invoke('sessions:list', agent, cwd),
   scanImport: () => ipcRenderer.invoke('import:scan'),
   loadState: () => ipcRenderer.invoke('state:load'),

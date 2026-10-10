@@ -73,7 +73,8 @@ function ensureTerm(tab) {
     if (e.ctrlKey && e.shiftKey && e.key === 'C') { navigator.clipboard.writeText(term.getSelection()); return false; }
     // xterm would send a raw Ctrl+V to the shell and swallow the browser paste, so read the clipboard here
     if (e.ctrlKey && !e.altKey && (e.key === 'v' || e.key === 'V')) {
-      navigator.clipboard.readText().then(text => { if (text) term.paste(text); }).catch(() => { /* clipboard blocked */ });
+      // text, copied files and screenshots are all read by the main process (the browser clipboard only sees text)
+      api.clipboardPaste().then(r => { if (r && r.text) term.paste(r.text); }).catch(() => { /* clipboard blocked */ });
       return false;
     }
     return true;
