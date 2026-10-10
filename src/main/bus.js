@@ -30,10 +30,14 @@ function envelope(msg) {
 
 // native: { sessionForCard(card) -> Promise<session|null>, externals() -> Promise<session[]>, send(session, text) -> Promise<{ok,error}> }
 // claudeLane: () => 'native' | 'paste'
-function createBus({ writeToCard, file, native = null, claudeLane = () => 'native' }) {
+// peer: { address() } of Agent Deck's own inbox on the Claude network (for replies and receipts), or null
+function createBus({ writeToCard, file, native = null, claudeLane = () => 'native', peer = null, centralName = '中控' }) {
   const token = crypto.randomBytes(24).toString('hex');
   let cards = [];                 // latest roster from the renderer
   const messages = new Map();     // id -> message
+  const byNativeId = new Map();   // Claude msg_id -> message (to apply delivery receipts)
+  const lastSender = new Map();   // Claude inbox address -> the card that last wrote to it (where its replies go)
+  const inbox = [];               // messages from Claude sessions that could not be routed to a card
   let server = null;
 
   const norm = s => String(s || '').trim().toLowerCase();
@@ -74,8 +78,14 @@ function createBus({ writeToCard, file, native = null, claudeLane = () => 'nativ
         msg.error = 'no Claude Code inbox found for that card (Claude not started yet, or a version without cross-session messaging)';
         return;
       }
-      const r = await native.send(session, envelope(msg));
-      if (r.ok) { msg.status = 'delivered'; msg.deliveredAt = Date.now(); msg.note = 'in the Claude session inbox; if that session bypasses permission prompts, its user reviews it first'; }
+      const from = peer && peer.address();
+      const r = await native.send(session, envelope(msg), { from, fromName: 'agent-deck' });
+      if (r.ok) {
+        msg.status = 'delivered'; msg.deliveredAt = Date.now();
+        msg.note = from ? 'in the Claude session inbox; its receipt will update this status' : 'in the Claude session inbox';
+        if (r.msgId) { msg.nativeId = r.msgId; byNativeId.set(r.msgId, msg); }
+        if (session.socket) lastSender.set(String(session.socket).toLowerCase(), msg.from);
+      }
       else { msg.status = 'failed'; msg.error = r.error; }
       return;
     }
@@ -112,6 +122,28 @@ function createBus({ writeToCard, file, native = null, claudeLane = () => 'nativ
       when: when === 'now' ? 'now' : 'idle', hops, lane, externalSession: target.external || null,
       status: 'queued', createdAt: Date.now(), timeoutMs: Math.max(10, timeoutS) * 1000,
     };
+    messages.set(msg.id, msg);
+    await deliver(msg);
+    return publicMsg(msg);
+  }
+  // Receipt from a Claude session (peer_message_status): held for its user's review, delivered, denied, ...
+  function onReceipt({ origMsgId, status, reason }) {
+    const m = byNativeId.get(origMsgId);
+    if (!m || !status) return false;
+    m.status = String(status); m.note = reason || m.note; m.receiptAt = Date.now();
+    return true;
+  }
+  // A Claude session sent something to "agent-deck" with its built-in SendMessage: hand it to the card that last
+  // wrote to that session (a reply), otherwise to the central card.
+  async function receiveExternal({ from, fromName, text }) {
+    const sender = fromName || from || 'unknown Claude session';
+    const target = lastSender.get(String(from || '').replace(/^uds:/, '').toLowerCase()) || centralName;
+    const list = await roster();
+    const card = list.find(c => !c.external && c.title === target) || list.find(c => !c.external && c.title === centralName);
+    if (!card) { inbox.push({ from: sender, text, at: Date.now() }); return { status: 'kept', note: 'no card to hand it to' }; }
+    const lane = card.agentKey === 'claude' && native && claudeLane() === 'native' ? 'native' : 'paste';
+    const msg = { id: crypto.randomUUID().slice(0, 8), from: sender, toId: card.id, to: card.title, text: String(text).slice(0, 20000), when: 'idle', hops: [],
+      lane, externalSession: null, status: 'queued', createdAt: Date.now(), timeoutMs: 1800e3, external: true };
     messages.set(msg.id, msg);
     await deliver(msg);
     return publicMsg(msg);
@@ -164,7 +196,7 @@ function createBus({ writeToCard, file, native = null, claudeLane = () => 'nativ
   function stop() { clearInterval(timer); server?.close(); }
   function updateCards(list) { cards = Array.isArray(list) ? list.filter(c => c && c.id && c.title) : []; pump(); }
 
-  return { start, stop, updateCards, send, roster, envelope, _messages: messages };
+  return { start, stop, updateCards, send, roster, envelope, onReceipt, receiveExternal, inbox, _messages: messages };
 }
 
 module.exports = { createBus, envelope, MAX_HOPS };

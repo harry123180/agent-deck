@@ -89,7 +89,20 @@ Claude Code、Codex、OpenCode、Gemini CLI、agy，以及任何能在終端機�
 
 **Claude Code 原生收件匣（逆向後遷移）**
 
-Claude Code 每個 session 會在 `~/.claude/sessions/` 登記自己（`<pid>.json`：名稱、資料夾、狀態、收件匣 pipe 位址），並發佈一把收件匣金鑰（`<pid>.*.key`）。收件匣是一條本機 named pipe，用「每行一個 JSON」溝通：先送驗證行，再送 `user` 訊息。Agent Deck 照這個協定當寄件人（`src/main/ccmsg.js`），並用程序樹判斷哪個 session 屬於哪張卡片。
+Claude Code 的跨 session 訊息是這樣運作的（從 CLI 逆向，再用真正的 Claude Code 客戶端兩個方向都實測確認）：
+
+| 部分 | 內容 |
+|---|---|
+| 註冊 | 每個 session 寫 `~/.claude/sessions/<pid>.json`：名稱、資料夾、狀態、`procStart`（程序真實啟動時間）、`peerFeatures`、收件匣位址 |
+| 金鑰 | `~/.claude/sessions/<pid>.<小寫收件匣路徑的 SHA-256>.key` 裡的 `peerToken` |
+| 收件匣 | 本機 named pipe（`\\.\pipe\LOCAL\cc-msg-…`），每行一個 JSON，第一行必須是驗證行 |
+| 訊息 | `type:"user"`，帶 `msg_id`、`priority`、寄件人收件匣 `from`；內容包在 `<cross-session-message from=… from-name=…>` 裡 |
+| 控制 | `notify_when_idle`（閒置時通知我）、`peer_idle_notice`（閒置通知）、`peer_message_status`（送達回執：held / delivered / denied …） |
+
+Agent Deck 在這個網路上是一個**誠實的 peer**（`src/main/ccmsg.js`、`src/main/ccpeer.js`）：
+- **寄件**：送進 Claude 卡片或外部 Claude session 的收件匣（用程序樹判斷哪個 session 屬於哪張卡片）。
+- **收件**：Agent Deck 以 `agent-deck` 的名稱註冊（自己的 PID 與真實啟動時間，結束時移除；被強制關閉留下的殘骸，下次啟動會清掉）。任何 Claude session 都能用內建的 `SendMessage` 傳給 `agent-deck`，Agent Deck 會轉給當初寫信給它的卡片，沒有的話就轉給中控。
+- **回執**：Claude 回傳的送達狀態會寫回訊息，`message_status` 看得到「已保留等你核准」等真實狀態。
 
 Claude Code 對收到的訊息有自己的保護，Agent Deck 完全照它的規則走，**不偽造身分、不假宣告權限模式**：
 - 一般權限模式的 session：訊息直接進入它的輸入佇列。

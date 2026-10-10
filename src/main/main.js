@@ -12,6 +12,7 @@ const { nearestExisting } = require('./paths');
 const { AGENTS } = require('./agents');
 const { createBus } = require('./bus');
 const ccmsg = require('./ccmsg');
+const { createPeer } = require('./ccpeer');
 const { wireCommand, opencodeEnv, launcherScript } = require('./wire');
 
 const STATE_FILE = () => path.join(app.getPath('userData'), 'state.json');
@@ -122,18 +123,28 @@ const nativeLane = {
     const shell = ptys.get(card.id)?.pid;
     if (!shell) return null;
     const parent = await processParents();
-    return ccmsg.listSessions().find(s => descends(s.pid, shell, parent)) || null;
+    return ccmsg.listSessions({ excludePid: process.pid }).find(s => descends(s.pid, shell, parent)) || null;
   },
   async externals() {
     const parent = await processParents();
     const shells = [...ptys.values()].map(p => p.pid);
-    return ccmsg.listSessions().filter(s => !shells.some(sh => descends(s.pid, sh, parent)));
+    return ccmsg.listSessions({ excludePid: process.pid }).filter(s => !shells.some(sh => descends(s.pid, sh, parent)));
   },
-  send: (session, text) => ccmsg.sendToSession(session, text),
+  send: (session, text, opts) => ccmsg.sendToSession(session, text, opts),
 };
 let claudeLaneSetting = 'native';
+// Agent Deck's own inbox on the Claude Code network: other Claude sessions can SendMessage to "agent-deck", reply to
+// what Agent Deck sent, and send delivery receipts back.
+let peerReady = false;
+const peer = createPeer({
+  name: 'agent-deck', version: `agent-deck ${app.getVersion()}`,
+  onUser: m => { bus.receiveExternal(m).catch(() => {}); },
+  onStatus: r => { bus.onReceipt(r); },
+  log: m => console.log(m),
+});
 const bus = createBus({
   native: nativeLane,
+  peer: { address: () => (peerReady ? peer.address() : null) },
   claudeLane: () => claudeLaneSetting,
   file: null,   // written once the app is ready (userData path)
   writeToCard: (id, text, enter, agentKey) => {
@@ -228,9 +239,10 @@ app.whenReady().then(async () => {
     fs.writeFileSync(BUS_FILE(), JSON.stringify(info, null, 2));
     writeMcpConfig();
   } catch (err) { console.error('agent bus failed to start', err && err.message); }
+  try { await peer.start(); peerReady = true; } catch (err) { console.error('claude peer inbox failed to start', err && err.message); }
   createWindow();
 });
-app.on('will-quit', () => { bus.stop(); try { fs.unlinkSync(BUS_FILE()); } catch { /* already gone */ } });
+app.on('will-quit', () => { bus.stop(); peer.stop(); try { fs.unlinkSync(BUS_FILE()); } catch { /* already gone */ } });
 // Closing mid-conversation used to kill every shell outright, so Claude Code never flushed the transcript and the
 // next resume found nothing. Ask each agent to exit normally first (Ctrl+C twice), give it time to save, then kill.
 let quitting = false;
