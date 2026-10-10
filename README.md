@@ -82,8 +82,8 @@ Claude Code、Codex、OpenCode、Gemini CLI、agy，以及任何能在終端機�
 
 | 平台 | 方式 | 實測 |
 |---|---|---|
-| Claude Code | 啟動指令自動加上 `--mcp-config` | 收、發、雙向回覆 ✔ |
-| Codex | 啟動指令自動加上 `-c mcp_servers.agentdeck.*`（透過 `.cmd` 啟動檔，避開 PowerShell 5.1 的引號問題） | 發 ✔ |
+| Claude Code | 啟動指令自動加上 `--mcp-config` | 收、發、雙向回覆 ✔（原生收件匣；一般權限模式下會先問你才用工具） |
+| Codex | 啟動指令自動加上 `-c mcp_servers.agentdeck.*`（透過 `.cmd` 啟動檔，避開 PowerShell 5.1 的引號問題） | 收、發 ✔ |
 | OpenCode | 卡片終端自動帶 `OPENCODE_CONFIG_CONTENT`，會和你原本的 MCP 設定合併 | 收、發 ✔ |
 | agy | 只能全域設定，需要自己執行一次：`agy mcp add agentdeck "%APPDATA%\agent-deck\central\agentdeck-mcp.cmd"`（移除：`agy mcp remove agentdeck`） | 收、發、雙向回覆 ✔ |
 

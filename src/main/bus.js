@@ -82,7 +82,7 @@ function createBus({ writeToCard, file, native = null, claudeLane = () => 'nativ
     const card = cards.find(c => c.id === msg.toId);
     if (!card) { msg.status = 'failed'; msg.error = 'card no longer exists'; return; }
     if (msg.when === 'idle' && !READY.has(card.state)) return;   // keep waiting
-    const ok = writeToCard(card.id, `\x1b[200~${envelope(msg)}\x1b[201~`, '\r');
+    const ok = writeToCard(card.id, `\x1b[200~${envelope(msg)}\x1b[201~`, '\r', card.agentKey);
     if (ok) { msg.status = 'delivered'; msg.deliveredAt = Date.now(); } else { msg.status = 'failed'; msg.error = 'card terminal is not running'; }
   }
   const pump = () => { for (const m of messages.values()) if (m.status === 'queued' && m.lane === 'paste') deliver(m); };

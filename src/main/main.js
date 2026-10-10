@@ -136,11 +136,14 @@ const bus = createBus({
   native: nativeLane,
   claudeLane: () => claudeLaneSetting,
   file: null,   // written once the app is ready (userData path)
-  writeToCard: (id, text, enter) => {
+  writeToCard: (id, text, enter, agentKey) => {
     const p = ptys.get(id);
     if (!p) return false;
     p.write(text);
-    setTimeout(() => { if (ptys.get(id) === p) p.write(enter); }, 150);   // let the TUI take the paste before Enter
+    // Let the TUI take the paste before Enter. Codex treats an Enter that follows a paste too closely as part of
+    // the paste (a newline in the draft), so it needs a longer pause to read it as "submit".
+    const delay = agentKey === 'codex' ? 1200 : 150;
+    setTimeout(() => { if (ptys.get(id) === p) p.write(enter); }, delay);
     return true;
   },
 });
