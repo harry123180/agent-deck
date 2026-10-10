@@ -73,7 +73,9 @@ async function callTool(name, a = {}) {
   if (name === 'list_agents') {
     const { agents } = await bus('GET', '/agents');
     if (!agents.length) return 'Agent Deck has no cards.';
-    return `You are "${me()}".\n` + agents.map(x => `- ${x.name} | ${x.platform} | ${x.stateLabel || x.state} | project: ${x.project || '-'} | ${x.folder}`).join('\n');
+    return `You are "${me()}".\n` + agents.map(x => `- ${x.name} | ${x.platform} | ${x.stateLabel || x.state} | project: ${x.project || '-'} | ${x.folder}` +
+      ` | via ${x.lane === 'native' ? 'Claude Code cross-session inbox' : 'its terminal'}${x.external ? ' | outside Agent Deck' : ''}`).join('\n') +
+      '\nNote: a Claude session that bypasses permission prompts holds incoming messages until its user approves them.';
   }
   if (name === 'read_agent') {
     const r = await bus('GET', `/read?agent=${encodeURIComponent(a.agent)}&lines=${a.lines || 40}`);

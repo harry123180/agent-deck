@@ -11,6 +11,7 @@ const sessions = require('./sessions');
 const { nearestExisting } = require('./paths');
 const { AGENTS } = require('./agents');
 const { createBus } = require('./bus');
+const ccmsg = require('./ccmsg');
 const { wireCommand, opencodeEnv, launcherScript } = require('./wire');
 
 const STATE_FILE = () => path.join(app.getPath('userData'), 'state.json');
@@ -100,7 +101,40 @@ function writeMcpConfig() {
   fs.writeFileSync(LAUNCHER(), launcherScript({ electron: process.execPath, server: MCP_SERVER, busFile: BUS_FILE() }));
   return file;
 }
+// Which process started which: needed to tell which Claude session belongs to which card (the session's claude.exe
+// runs under the card's shell). Cached briefly; one CIM query covers all processes.
+let treeCache = { at: 0, parent: new Map() };
+function processParents() {
+  if (Date.now() - treeCache.at < 3000) return Promise.resolve(treeCache.parent);
+  return new Promise(resolve => {
+    execFile('powershell.exe', ['-NoProfile', '-Command', 'Get-CimInstance Win32_Process | ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId)" }'],
+      { timeout: 10000, maxBuffer: 8 * 1024 * 1024, windowsHide: true, encoding: 'utf8' }, (err, stdout) => {
+        const parent = new Map();
+        if (!err) for (const line of String(stdout).split(/\r?\n/)) { const [a, b] = line.trim().split(/\s+/).map(Number); if (a) parent.set(a, b); }
+        treeCache = { at: Date.now(), parent };
+        resolve(parent);
+      });
+  });
+}
+const descends = (pid, ancestor, parent) => { for (let i = 0, p = pid; i < 8 && p; i++) { p = parent.get(p); if (p === ancestor) return true; } return false; };
+const nativeLane = {
+  async sessionForCard(card) {
+    const shell = ptys.get(card.id)?.pid;
+    if (!shell) return null;
+    const parent = await processParents();
+    return ccmsg.listSessions().find(s => descends(s.pid, shell, parent)) || null;
+  },
+  async externals() {
+    const parent = await processParents();
+    const shells = [...ptys.values()].map(p => p.pid);
+    return ccmsg.listSessions().filter(s => !shells.some(sh => descends(s.pid, sh, parent)));
+  },
+  send: (session, text) => ccmsg.sendToSession(session, text),
+};
+let claudeLaneSetting = 'native';
 const bus = createBus({
+  native: nativeLane,
+  claudeLane: () => claudeLaneSetting,
   file: null,   // written once the app is ready (userData path)
   writeToCard: (id, text, enter) => {
     const p = ptys.get(id);
@@ -110,7 +144,8 @@ const bus = createBus({
     return true;
   },
 });
-ipcMain.on('status:publish', (_e, cards) => {
+ipcMain.on('status:publish', (_e, cards, opts) => {
+  if (opts && (opts.claudeLane === 'paste' || opts.claudeLane === 'native')) claudeLaneSetting = opts.claudeLane;
   bus.updateCards(Array.isArray(cards) ? cards : []);
   try {
     const dir = CENTRAL_DIR();

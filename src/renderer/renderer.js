@@ -744,12 +744,12 @@ function publishStatus() {
     const r = terms.get(t.id);
     const st = r?.state || 'asleep';
     return {
-      id: t.id, title: t.title, project: projById(t.projectId)?.name || '', state: st,
+      id: t.id, title: t.title, agentKey: t.agent, project: projById(t.projectId)?.name || '', state: st,
       stateLabel: LABEL[st], agent: AGENTS[t.agent]?.label || t.agent, cwd: t.cwd,
       tail: r ? bottomLines(r.term, 80).join('\n') : '',   // read_agent can ask for up to 80 lines
     };
   });
-  api.publishStatus(cards);
+  api.publishStatus(cards, { claudeLane: state.settings.claudeLane === 'paste' ? 'paste' : 'native' });
 }
 setInterval(publishStatus, 1500);
 
@@ -759,7 +759,8 @@ $('#btn-central').addEventListener('click', async () => {
   const mcp = await api.mcpConfig();   // agentdeck MCP server: list_agents / read_agent / send_to_agent / ...
   // the central agent gets the agentdeck tools both on first start and after every resume
   const base = `claude --mcp-config "${mcp}" --allowedTools "mcp__agentdeck"`;
-  const q = s => s.replace(/"/g, '\\"');
+  // the prompt goes through PowerShell: keep it free of ASCII double quotes (5.1 would split the argument there)
+  const q = s => s.replace(/"/g, '「').replace(/`/g, "'");
   const prompt = '你是 Agent Deck 的中控 agent。你有 agentdeck 工具可以和每張卡片裡的 agent 溝通，不論它是 Claude Code、Codex、OpenCode 或 agy：' +
     'list_agents 看所有卡片與狀態、read_agent 看某張卡片最新畫面、send_to_agent 傳訊息給它（預設等它閒下來才送）、wait_for_agent 等它做完並取回結果、message_status 查送達狀態。' +
     `另有狀態看板 ${dir}\\status.md。請先用 list_agents，用中文摘要每張卡片的狀態（哪些在工作、哪些在等我、哪些需要決策或出錯），之後等我指示。`;

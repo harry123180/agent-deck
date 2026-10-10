@@ -12,6 +12,9 @@
     /enter to (select|confirm)|esc to cancel/i,
     /waiting for (your )?(approval|confirmation|input|response)/i,
     /would you like to|press enter to continue/i,
+    /do you trust (the contents of )?this (project|folder)|yes, i trust this folder/i,   // first run in a folder (agy, Claude, ...)
+    // Claude Code holds a cross-session message for review; the dialog is long, so match its options at the bottom too
+    /held peer message|held message from another session|deliver this message to claude|drop it and tell the sender/i,
   ];
   // Actively working
   const WORK = [

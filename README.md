@@ -69,23 +69,39 @@ Claude Code、Codex、OpenCode、Gemini CLI、agy，以及任何能在終端機�
 
 你可以直接跟中控說：「看一下大家的狀態」、「請 backend 跑完測試後回報給我」、「叫 docs 依照 backend 的 API 更新文件」。
 
-**各平台怎麼接上**（Agent Deck 自動處理，不會改你自己的設定檔）：
+中控也能聯絡 **Agent Deck 以外**你另外開的 Claude Code session（`list_agents` 會標示「outside Agent Deck」）。
 
-| 平台 | 方式 |
+**訊息怎麼送達**
+
+| 目標 | 通道 |
 |---|---|
-| Claude Code | 啟動指令自動加上 `--mcp-config` |
-| Codex | 啟動指令自動加上 `-c mcp_servers.agentdeck.*` |
-| OpenCode | 卡片終端自動帶 `OPENCODE_CONFIG_CONTENT`，會和你原本的 MCP 設定合併 |
-| agy | 只能全域設定，需要自己執行一次：`agy mcp add agentdeck "%APPDATA%\agent-deck\central\agentdeck-mcp.cmd"`（尚未實測） |
+| Claude Code（卡片內或外部 session） | **Claude Code 原生的跨 session 收件匣**（見下方說明），由 Claude 自己決定直接收下或先保留等你核准 |
+| Codex、OpenCode、agy 等 | 等該卡片「待輸入」時，把訊息貼進它的終端並送出 |
+
+**各平台怎麼接上 agentdeck 工具**（Agent Deck 自動處理，不會改你自己的設定檔）：
+
+| 平台 | 方式 | 實測 |
+|---|---|---|
+| Claude Code | 啟動指令自動加上 `--mcp-config` | 收、發、雙向回覆 ✔ |
+| Codex | 啟動指令自動加上 `-c mcp_servers.agentdeck.*`（透過 `.cmd` 啟動檔，避開 PowerShell 5.1 的引號問題） | 發 ✔ |
+| OpenCode | 卡片終端自動帶 `OPENCODE_CONFIG_CONTENT`，會和你原本的 MCP 設定合併 | 收、發 ✔ |
+| agy | 只能全域設定，需要自己執行一次：`agy mcp add agentdeck "%APPDATA%\agent-deck\central\agentdeck-mcp.cmd"`（移除：`agy mcp remove agentdeck`） | 收、發、雙向回覆 ✔ |
+
+**Claude Code 原生收件匣（逆向後遷移）**
+
+Claude Code 每個 session 會在 `~/.claude/sessions/` 登記自己（`<pid>.json`：名稱、資料夾、狀態、收件匣 pipe 位址），並發佈一把收件匣金鑰（`<pid>.*.key`）。收件匣是一條本機 named pipe，用「每行一個 JSON」溝通：先送驗證行，再送 `user` 訊息。Agent Deck 照這個協定當寄件人（`src/main/ccmsg.js`），並用程序樹判斷哪個 session 屬於哪張卡片。
+
+Claude Code 對收到的訊息有自己的保護，Agent Deck 完全照它的規則走，**不偽造身分、不假宣告權限模式**：
+- 一般權限模式的 session：訊息直接進入它的輸入佇列。
+- 「略過權限確認」模式的 session：訊息會被**保留**，畫面出現審閱框（預設選項是 Deny），由你決定送不送。卡片燈號會顯示「需決策」。想讓它直接收下，可以在 Claude Code 設定把 `crossSessionInbound` 設成 `accept`（這是你自己的選擇，Agent Deck 不會替你改）。
+- 找不到某張 Claude 卡片的收件匣時，訊息會回報失敗，**不會**改用貼上（那等於繞過上述保護）。若你確定要用貼上，可在工作區設定把 `settings.claudeLane` 設為 `"paste"`。
 
 **安全設計**
 - 訊息只在本機傳遞（127.0.0.1，每次啟動產生新的隨機 token）。
 - 只有中控卡片預先允許使用這些工具；一般卡片要傳訊息前，會照該 agent 的權限設定先問你。
-- 訊息只會送進「待輸入」的卡片，不會貼進正在問你問題（需決策）的畫面。
+- 貼上通道只會送進「待輸入」的卡片，不會貼進正在問你問題的畫面（權限確認、信任此資料夾、Claude 的審閱框等）。
 - 每則訊息都標明寄件人；同一串對話最多來回 4 次，避免 agent 之間無限互傳。
 - 收到的訊息是「另一個 agent 寫的」，請像看待任何外部輸入一樣看待它。
-
-**設計參考**：這套做法參考了 Claude Code 自己的跨 session 訊息機制（session 註冊表、每個 session 的訊息通道、`from` 與 `hop-chain` 標記、「等對方閒下來再通知」），但改成不綁定特定平台：用 MCP 當共同介面，用「在對方閒置時把訊息貼進它的終端」來送達，所以任何能在終端機跑、支援 MCP 的 agent 都能參與。
 
 ## 系統需求
 

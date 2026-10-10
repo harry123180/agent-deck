@@ -77,27 +77,66 @@ const cards = state => [
 
   // errors are reported as tool errors, not crashes
   r = await call('send_to_agent', { agent: 'nobody', message: 'hi' });
-  assert.ok(r.isError && r.text.includes('no card named'), r.text);
+  assert.ok(r.isError && r.text.includes('no agent named'), r.text);
   r = await call('send_to_agent', { agent: 'docs', message: '   ' });
   assert.ok(r.isError, r.text);
 
   // loop protection: a reply chain that bounces between agents is cut off
   // a reply to whoever asked is allowed ...
-  const first = bus.send({ to: 'backend', text: 'q', from: '中控', when: 'now' });
-  const back = bus.send({ to: '中控', text: 'a', from: 'backend', replyTo: first.id, when: 'now' });
+  const first = await bus.send({ to: 'backend', text: 'q', from: '中控', when: 'now' });
+  const back = await bus.send({ to: '中控', text: 'a', from: 'backend', replyTo: first.id, when: 'now' });
   assert.ok(!back.error && back.status === 'delivered', 'a direct reply is delivered: ' + JSON.stringify(back));
   // ... but endless ping-pong stops after MAX_HOPS exchanges
   let prev = back, a2 = 'backend', b2 = '中控', n = 2;
-  for (; n < 10; n++) { const r = bus.send({ to: a2, text: 'x', from: b2, replyTo: prev.id, when: 'now' }); if (r.error) { prev = r; break; } prev = r; [a2, b2] = [b2, a2]; }
+  for (; n < 10; n++) { const r = await bus.send({ to: a2, text: 'x', from: b2, replyTo: prev.id, when: 'now' }); if (r.error) { prev = r; break; } prev = r; [a2, b2] = [b2, a2]; }
   assert.ok(prev.error && prev.error.includes('hop limit') && n === 4, `ping-pong stopped at exchange ${n}: ${JSON.stringify(prev)}`);
-  assert.ok(bus.send({ to: 'docs', text: 'x', from: 'docs', when: 'now' }).error, 'cannot message yourself');
-  const tooLong = bus.send({ to: 'docs', text: 'x', from: 'e', hops: ['a', 'b', 'c', 'd'], when: 'now' });
+  assert.ok((await bus.send({ to: 'docs', text: 'x', from: 'docs', when: 'now' })).error, 'cannot message yourself');
+  const tooLong = await bus.send({ to: 'docs', text: 'x', from: 'e', hops: ['a', 'b', 'c', 'd'], when: 'now' });
   assert.ok(tooLong.error && tooLong.error.includes('hop limit'), JSON.stringify(tooLong));
 
   // a card whose terminal is not running -> failed, with a reason
   alive.delete('c-codex');
-  const dead = bus.send({ to: 'backend', text: 'x', from: '中控', when: 'now' });
+  const dead = await bus.send({ to: 'backend', text: 'x', from: '中控', when: 'now' });
   assert.strictEqual(dead.status, 'failed');
+
+
+  // ---- native lane: Claude cards and Claude sessions outside Agent Deck go through Claude Code's own inbox ----
+  const nativeSent = [];
+  const sessions = { 'c-cl': { pid: 11, name: 'lms', cwd: 'D:\lms', status: 'idle' } };
+  const ext = [{ pid: 22, name: 'outside-project', cwd: 'D:\other', status: 'busy' }];
+  const nb = createBus({
+    writeToCard: (id, text) => { writes.push({ id, text, lane: 'paste' }); return true; },
+    native: { sessionForCard: async c => sessions[c.id] || null, externals: async () => ext, send: async (s, t) => { nativeSent.push({ pid: s.pid, t }); return { ok: true }; } },
+  });
+  nb.updateCards([
+    { id: 'c-cl', title: 'lms', agentKey: 'claude', agent: 'Claude Code', state: 'working', stateLabel: '工作中', cwd: 'D:\lms', tail: '' },
+    { id: 'c-cl2', title: 'fresh', agentKey: 'claude', agent: 'Claude Code', state: 'idle', stateLabel: '待輸入', cwd: 'D:\f', tail: '' },
+    { id: 'c-cx', title: 'api', agentKey: 'codex', agent: 'Codex', state: 'idle', stateLabel: '待輸入', cwd: 'D:\api', tail: '' },
+  ]);
+  const before = writes.length;
+  // a Claude card is reached natively even while it works (Claude queues it itself), nothing is pasted
+  let n1 = await nb.send({ to: 'lms', text: 'native hello', from: '中控' });
+  assert.ok(n1.status === 'delivered' && n1.lane === 'native', JSON.stringify(n1));
+  assert.ok(nativeSent.at(-1).pid === 11 && nativeSent.at(-1).t.includes('native hello') && nativeSent.at(-1).t.includes('from="中控"'));
+  assert.strictEqual(writes.length, before, 'nothing typed into the Claude terminal');
+  // a Claude card without an inbox fails clearly; it is NOT pasted (that would sidestep Claude's inbound policy)
+  n1 = await nb.send({ to: 'fresh', text: 'x', from: '中控' });
+  assert.ok(n1.status === 'failed' && /inbox/.test(n1.error), JSON.stringify(n1));
+  assert.strictEqual(writes.length, before, 'no paste fallback for Claude cards');
+  // other platforms still use the paste lane
+  n1 = await nb.send({ to: 'api', text: 'codex hello', from: '中控' });
+  assert.ok(n1.lane === 'paste' && n1.status === 'delivered' && writes.at(-1).id === 'c-cx');
+  // Claude sessions outside Agent Deck are listed and reachable
+  const all = await nb.roster();
+  assert.ok(all.some(a => a.title === 'outside-project' && a.external), 'external session listed');
+  n1 = await nb.send({ to: 'outside-project', text: 'hi outside', from: '中控' });
+  assert.ok(n1.lane === 'native' && n1.status === 'delivered' && nativeSent.at(-1).pid === 22, JSON.stringify(n1));
+  // the user can choose the paste lane for Claude cards explicitly
+  const pb = createBus({ writeToCard: (id, t) => { writes.push({ id, t }); return true; }, native: { sessionForCard: async () => null, externals: async () => [], send: async () => ({ ok: true }) }, claudeLane: () => 'paste' });
+  pb.updateCards([{ id: 'c-cl2', title: 'fresh', agentKey: 'claude', state: 'idle', stateLabel: '待輸入', cwd: 'x', tail: '' }]);
+  n1 = await pb.send({ to: 'fresh', text: 'y', from: '中控' });
+  assert.ok(n1.lane === 'paste' && n1.status === 'delivered', JSON.stringify(n1));
+  nb.stop(); pb.stop();
 
   mcp.stdin.end(); bus.stop();
   console.log('bus tests passed');
