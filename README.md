@@ -99,6 +99,8 @@ Claude Code 的跨 session 訊息是這樣運作的（從 CLI 逆向，再用真
 | 訊息 | `type:"user"`，帶 `msg_id`、`priority`、寄件人收件匣 `from`；內容包在 `<cross-session-message from=… from-name=…>` 裡 |
 | 控制 | `notify_when_idle`（閒置時通知我）、`peer_idle_notice`（閒置通知）、`peer_message_status`（送達回執：held / delivered / denied …） |
 
+完整規格（含錯誤與邊界行為的實測結果）見 [docs/claude-cross-session-protocol.md](docs/claude-cross-session-protocol.md)。
+
 Agent Deck 在這個網路上是一個**誠實的 peer**（`src/main/ccmsg.js`、`src/main/ccpeer.js`）：
 - **寄件**：送進 Claude 卡片或外部 Claude session 的收件匣（用程序樹判斷哪個 session 屬於哪張卡片）。
 - **收件**：Agent Deck 以 `agent-deck` 的名稱註冊（自己的 PID 與真實啟動時間，結束時移除；被強制關閉留下的殘骸，下次啟動會清掉）。任何 Claude session 都能用內建的 `SendMessage` 傳給 `agent-deck`，Agent Deck 會轉給當初寫信給它的卡片，沒有的話就轉給中控。
