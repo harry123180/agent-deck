@@ -53,11 +53,11 @@
 |---|---|---|---|
 | `notify_when_idle` | 請對方下次閒置（或結束）時通知一次 | `from`、`from_mode`、`msgV`、`msg_id` | 實測（Claude 送出的實際訊框） |
 | `peer_idle_notice` | 閒置通知，回應上述訂閱 | `orig_msg_id`（= 訂閱的 `msg_id`）、`from` | 實測：不宣告權限模式的訂閱也會收到，且只收到 1 次 |
-| `peer_message_status` | 送達回執 | `status`、`reason`、`orig_msg_id`、`from` | 實測 `held`、`denied`、`expired`、`dropped`；`delivered`、`refused` 為程式觀察（`refused` 是 `expired` 帶 `status_detail: refused` 的變體） |
+| `peer_message_status` | 送達回執 | `status`、`reason`、`orig_msg_id`、`from` | 實測 `held`、`denied`、`expired`、`dropped`、`delivered`；`refused` 為程式觀察（`expired` 帶 `status_detail: refused` 的變體），未能觸發 |
 | `rename` | 改變收件 session 的名稱 | `name` | 實測：收件 session 註冊表的 `name` 隨即改變（Agent Deck 的收件匣不接受別人替它改名） |
 | `unyield_artifact_replies`、`artifact_replies_yielded` | Artifact 相關回覆的交接 | — | 程式觀察（Agent Deck 未使用） |
 
-`dropped` 的原因（程式觀察）：送太快（rate-limited）、轉送迴圈（hop-loop / hop-runaway）、佇列滿（queue-full）、與上一則完全相同。實測：連送兩則相同訊息，第二則收到 `dropped`；連送 15 則不同訊息**沒有**觸發限速。
+`dropped` 的原因（程式觀察）：送太快（rate-limited）、轉送迴圈（hop-loop / hop-runaway）、佇列滿（queue-full）、與上一則完全相同。實測：連送兩則相同訊息，第二則收到 `dropped`；對方忙碌時連送 40 則，有 2 則收到 `dropped`（`drop_reason: rate-limited`）；對閒置 session 連送 15 則未觸發限速。`queue-full` 未能觸發：對略過權限模式的 session 同時送 60 則，全部進入「保留」而非一般佇列。
 
 ## 4. 收件端的處理規則
 
@@ -68,6 +68,8 @@
 | 使用者在審閱框選 Deny | 寄件人收到 `denied` 回執 | 實測 |
 | 使用者選 Deliver | 訊息送進 Claude，被正常回應 | 實測 |
 | 被保留但沒人審閱 | **300 秒**後寄件人收到 `expired` | 實測 |
+| 被保留後使用者選 Deliver | 寄件人收到 `delivered`（「先前被保留的訊息已核准並放行」） | 實測 |
+| 收件端設定 `crossSessionInbound: hold` | 訊息被保留；實測 7 分鐘內未過期（與上一列不同） | 實測 |
 | 使用者設定 `crossSessionInbound` | `accept` / `hold`；組織與專案層級的設定可強制 `hold` | 程式觀察 |
 
 ## 5. Agent Deck 的做法
@@ -93,4 +95,7 @@
 | 被保留後無人審閱 → 300 秒後 `expired` 回執 | ✔ |
 | 一般權限模式的 worker 使用工具前先詢問，核准後經原生收件匣回覆 | ✔ |
 
-仍只有程式觀察、未實測：`delivered` / `refused` 回執、限速與佇列滿的實際門檻、artifact 相關的兩個控制動作（Agent Deck 不使用）。
+| 被保留後核准 → `delivered` 回執 | ✔ |
+| 忙碌時連送 → `dropped`（`rate-limited`） | ✔ |
+
+**未能觸發、仍只有程式觀察的項目**：`refused` 回執、`queue-full` 丟棄、限速的確切門檻，以及 artifact 相關的兩個控制動作（`unyield_artifact_replies`、`artifact_replies_yielded`，屬於 Claude 的 artifact 功能，與 agent 傳訊無關）。Agent Deck 對回執一律記錄原始的 `status`、`status_detail`、`drop_reason`，所以這些狀態即使出現也會照實寫進訊息狀態。

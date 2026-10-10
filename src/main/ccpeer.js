@@ -34,7 +34,10 @@ function createPeer({ name = 'agent-deck', cwd = process.cwd(), version = 'agent
       const { text, attrs } = unwrap(f.message.content);
       onUser?.({ msgId: f.msg_id, from: f.from || attrs.from || '', fromName: attrs['from-name'] || '', fromMode: attrs['from-mode'] || '', text });
     } else if (f.type === 'control' && f.action === 'peer_message_status') {
-      onStatus?.({ origMsgId: f.orig_msg_id, status: f.status, reason: f.reason || f.status_detail || '', from: f.from || '' });
+      onStatus?.({
+        origMsgId: f.orig_msg_id, status: f.status, reason: f.reason || f.status_detail || '', from: f.from || '',
+        detail: f.status_detail || '', dropReason: f.drop_reason || '', droppedIds: Array.isArray(f.dropped_msg_ids) ? f.dropped_msg_ids : [], frame: f,
+      });
     } else if (f.type === 'control' && f.action === 'peer_idle_notice') {
       onIdle?.({ origMsgId: f.orig_msg_id, from: f.from || '' });
     } else {
