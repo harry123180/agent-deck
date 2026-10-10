@@ -125,7 +125,7 @@ async function startTab(tab, { fresh = false } = {}) {
   setOverlay(tab, '');
   if (fresh) r.term.reset();
   const command = launchCommand(tab);
-  const res = await api.spawn({ id: tab.id, cwd: tab.cwd, cols: r.term.cols, rows: r.term.rows, command, shell: state.settings.shell });
+  const res = await api.spawn({ id: tab.id, cwd: tab.cwd, cols: r.term.cols, rows: r.term.rows, command, shell: state.settings.shell, title: tab.title, agent: tab.agent, central: tab.title === '中控' });
   if (!res.ok) {
     r.status = 'dead';
     setOverlay(tab, `<div>無法啟動 shell</div><small>${esc(res.error)}</small><button>重試</button>`, () => startTab(tab));
@@ -736,6 +736,47 @@ function tickStates() {
   renderTabs();
 }
 setInterval(tickStates, 700);
+
+// ---------- central status board ----------
+const LABEL = { working: '工作中', idle: '待輸入', asking: '需決策', error: '出錯', asleep: '未啟動' };
+function publishStatus() {
+  const cards = orderedTabs().map(t => {
+    const r = terms.get(t.id);
+    const st = r?.state || 'asleep';
+    return {
+      id: t.id, title: t.title, project: projById(t.projectId)?.name || '', state: st,
+      stateLabel: LABEL[st], agent: AGENTS[t.agent]?.label || t.agent, cwd: t.cwd,
+      tail: r ? bottomLines(r.term, 80).join('\n') : '',   // read_agent can ask for up to 80 lines
+    };
+  });
+  api.publishStatus(cards);
+}
+setInterval(publishStatus, 1500);
+
+// central card: a Claude card whose first prompt points it at the status board
+$('#btn-central').addEventListener('click', async () => {
+  const dir = await api.centralDir();
+  const mcp = await api.mcpConfig();   // agentdeck MCP server: list_agents / read_agent / send_to_agent / ...
+  // the central agent gets the agentdeck tools both on first start and after every resume
+  const base = `claude --mcp-config "${mcp}" --allowedTools "mcp__agentdeck"`;
+  const q = s => s.replace(/"/g, '\\"');
+  const prompt = '你是 Agent Deck 的中控 agent。你有 agentdeck 工具可以和每張卡片裡的 agent 溝通，不論它是 Claude Code、Codex、OpenCode 或 agy：' +
+    'list_agents 看所有卡片與狀態、read_agent 看某張卡片最新畫面、send_to_agent 傳訊息給它（預設等它閒下來才送）、wait_for_agent 等它做完並取回結果、message_status 查送達狀態。' +
+    `另有狀態看板 ${dir}\\status.md。請先用 list_agents，用中文摘要每張卡片的狀態（哪些在工作、哪些在等我、哪些需要決策或出錯），之後等我指示。`;
+  const existing = state.tabs.find(t => t.title === '中控');
+  if (existing) {
+    if (!/--mcp-config/.test(existing.resumeCmd || '')) { existing.startCmd = `${base} "${q(prompt)}"`; existing.resumeCmd = `${base} --continue`; saveSoon(); }
+    activate(existing.id); return;
+  }
+  const tab = {
+    id: crypto.randomUUID(), title: '中控', cwd: dir, agent: 'claude', color: '#a78bfa', fontSize: 0,
+    startCmd: `${base} "${q(prompt)}"`, resumeCmd: `${base} --continue`, autoRun: true, launched: false,
+    projectId: '', lastActive: Date.now(),
+  };
+  state.tabs.unshift(tab);
+  activate(tab.id);
+  startTab(tab);
+});
 
 // ---------- add / edit dialog ----------
 let editing = null;

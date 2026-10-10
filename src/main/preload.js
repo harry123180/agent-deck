@@ -3,6 +3,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('deck', {
   getAgents: () => ipcRenderer.invoke('agents:get'),
+  publishStatus: cards => ipcRenderer.send('status:publish', cards),
+  centralDir: () => ipcRenderer.invoke('central:dir'),
+  mcpConfig: () => ipcRenderer.invoke('bus:mcpConfig'),
+  mcpServerSpec: () => ipcRenderer.invoke('bus:serverSpec'),
   clipboardPaste: () => ipcRenderer.invoke('clipboard:paste'),
   listSessions: (agent, cwd) => ipcRenderer.invoke('sessions:list', agent, cwd),
   scanImport: () => ipcRenderer.invoke('import:scan'),

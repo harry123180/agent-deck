@@ -53,6 +53,40 @@ Agent Deck 幫你解決這些問題。它是一個 Windows 桌面程式，把每
 
 Claude Code、Codex、OpenCode、Gemini CLI、agy，以及任何能在終端機執行的工具（選「自訂」填入指令即可）。
 
+## 🧭 中控 Agent：讓 agent 之間互相溝通（跨平台）
+
+按側欄下方的 **🧭 中控**，會開一張 Claude Code 卡片當「中控」。它能看到每張卡片在做什麼，也能把訊息送給任何一張卡片裡的 agent，不論那張是 Claude Code、Codex 還是 OpenCode。卡片裡的 agent 也能回覆中控或傳給彼此。
+
+中控可以用的工具（agentdeck MCP）：
+
+| 工具 | 做什麼 |
+|---|---|
+| `list_agents` | 列出所有卡片：名稱、平台、專案、目前狀態 |
+| `read_agent` | 讀某張卡片最新的畫面 |
+| `send_to_agent` | 傳訊息給某張卡片（預設等它「待輸入」才送，不會打斷它正在做的事） |
+| `wait_for_agent` | 等某張卡片做完，取回它的畫面 |
+| `message_status` | 查訊息送達了沒 |
+
+你可以直接跟中控說：「看一下大家的狀態」、「請 backend 跑完測試後回報給我」、「叫 docs 依照 backend 的 API 更新文件」。
+
+**各平台怎麼接上**（Agent Deck 自動處理，不會改你自己的設定檔）：
+
+| 平台 | 方式 |
+|---|---|
+| Claude Code | 啟動指令自動加上 `--mcp-config` |
+| Codex | 啟動指令自動加上 `-c mcp_servers.agentdeck.*` |
+| OpenCode | 卡片終端自動帶 `OPENCODE_CONFIG_CONTENT`，會和你原本的 MCP 設定合併 |
+| agy | 只能全域設定，需要自己執行一次：`agy mcp add agentdeck "%APPDATA%\agent-deck\central\agentdeck-mcp.cmd"`（尚未實測） |
+
+**安全設計**
+- 訊息只在本機傳遞（127.0.0.1，每次啟動產生新的隨機 token）。
+- 只有中控卡片預先允許使用這些工具；一般卡片要傳訊息前，會照該 agent 的權限設定先問你。
+- 訊息只會送進「待輸入」的卡片，不會貼進正在問你問題（需決策）的畫面。
+- 每則訊息都標明寄件人；同一串對話最多來回 4 次，避免 agent 之間無限互傳。
+- 收到的訊息是「另一個 agent 寫的」，請像看待任何外部輸入一樣看待它。
+
+**設計參考**：這套做法參考了 Claude Code 自己的跨 session 訊息機制（session 註冊表、每個 session 的訊息通道、`from` 與 `hop-chain` 標記、「等對方閒下來再通知」），但改成不綁定特定平台：用 MCP 當共同介面，用「在對方閒置時把訊息貼進它的終端」來送達，所以任何能在終端機跑、支援 MCP 的 agent 都能參與。
+
 ## 系統需求
 
 目前只在 **Windows 10／11** 測試過，macOS 還沒有支援。
