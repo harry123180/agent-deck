@@ -33,6 +33,7 @@ function newTab(partial = {}) {
     fontSize: Number.isFinite(partial.fontSize) ? Math.min(40, Math.max(8, Math.round(partial.fontSize))) : 0, // 0 = default size
     launched: !!partial.launched,   // true once the start command has run at least once
     lastActive: partial.lastActive || 0,
+    central: !!partial.central,     // the pinned central card (at most one)
   };
 }
 
@@ -45,6 +46,10 @@ function normalize(raw) {
   }));
   s.tabs = (Array.isArray(raw.tabs) ? raw.tabs : []).filter(t => t && t.cwd !== undefined).map(newTab);
   for (const t of s.tabs) if (t.projectId && !s.projects.some(p => p.id === t.projectId)) t.projectId = '';
+  // one central card: older versions marked it only by its title
+  let central = s.tabs.find(t => t.central) || s.tabs.find(t => t.title === '中控' && /--mcp-config/.test(t.resumeCmd));
+  for (const t of s.tabs) t.central = t === central;
+  if (central) central.projectId = '';
   s.activeId = s.tabs.some(t => t.id === raw.activeId) ? raw.activeId : (s.tabs[0]?.id ?? null);
   const layout = typeof raw.view?.layout === 'string' && /^[A-Za-z0-9-]{1,24}$/.test(raw.view.layout) ? raw.view.layout : 'auto';
   const fr = a => (Array.isArray(a) && a.length > 0 && a.length <= 12 && a.every(x => Number.isFinite(x) && x > 0) ? a : []);

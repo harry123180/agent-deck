@@ -18,7 +18,8 @@ const baseName = p => p.split(/[\\/]+/).filter(Boolean).pop() || p;
 const trimPath = p => p.replace(/[\\/]+$/, '').toLowerCase();
 const tabById = id => state.tabs.find(t => t.id === id);
 const projById = id => state.projects.find(p => p.id === id);
-const tabsOf = pid => state.tabs.filter(t => (t.projectId || '') === pid);
+const tabsOf = pid => state.tabs.filter(t => !t.central && (t.projectId || '') === pid);
+const centralTab = () => state.tabs.find(t => t.central);
 const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const ago = ts => {
   if (!ts) return '';
@@ -28,7 +29,7 @@ const ago = ts => {
 function setText(el, v) { if (el.textContent !== v) el.textContent = v; }
 const grid9 = () => '<span class="ind">' + '<i></i>'.repeat(9) + '</span>';
 // same order as the sidebar: project cards first, then loose cards
-const orderedTabs = () => [...state.projects.flatMap(p => tabsOf(p.id)), ...tabsOf('')];
+const orderedTabs = () => [...(centralTab() ? [centralTab()] : []), ...state.projects.flatMap(p => tabsOf(p.id)), ...tabsOf('')];
 const launchCommand = t => {
   if (t.autoRun === false) return '';
   return ((t.launched ? (t.resumeCmd || t.startCmd) : t.startCmd) || '').trim();
@@ -125,7 +126,7 @@ async function startTab(tab, { fresh = false } = {}) {
   setOverlay(tab, '');
   if (fresh) r.term.reset();
   const command = launchCommand(tab);
-  const res = await api.spawn({ id: tab.id, cwd: tab.cwd, cols: r.term.cols, rows: r.term.rows, command, shell: state.settings.shell, title: tab.title, agent: tab.agent, central: tab.title === '中控' });
+  const res = await api.spawn({ id: tab.id, cwd: tab.cwd, cols: r.term.cols, rows: r.term.rows, command, shell: state.settings.shell, title: tab.title, agent: tab.agent, central: !!tab.central });
   if (!res.ok) {
     r.status = 'dead';
     setOverlay(tab, `<div>無法啟動 shell</div><small>${esc(res.error)}</small><button>重試</button>`, () => startTab(tab));
@@ -373,7 +374,7 @@ function cardFor(t) {
   let d = cardEls.get(t.id);
   if (d) return d;
   d = document.createElement('div');
-  d.draggable = true;
+  d.draggable = !t.central;
   d.innerHTML = grid9() + '<div class="meta"><div class="name"></div><div class="sub"></div></div><span class="acct-badge" hidden></span><div class="stat"><b></b><span></span></div>';
   const id = t.id;
   d.addEventListener('click', e => activate(id, { toggle: e.ctrlKey || e.shiftKey || e.metaKey }));
@@ -381,7 +382,7 @@ function cardFor(t) {
   d.addEventListener('contextmenu', e => { e.preventDefault(); showCardMenu(e.clientX, e.clientY, tabById(id)); });
   d.addEventListener('dragstart', () => { dragRef = { kind: 'tab', id }; });
   d.addEventListener('dragend', () => { dragRef = null; });
-  d.addEventListener('dragover', e => { if (dragRef?.kind === 'tab') { e.preventDefault(); d.classList.add('drag-over'); } });
+  d.addEventListener('dragover', e => { if (dragRef?.kind === 'tab' && !tabById(id)?.central) { e.preventDefault(); d.classList.add('drag-over'); } });
   d.addEventListener('dragleave', () => d.classList.remove('drag-over'));
   d.addEventListener('drop', e => {
     d.classList.remove('drag-over');
@@ -459,7 +460,7 @@ function updateCard(t, now) {
   const r = terms.get(t.id);
   const st = r?.state || 'asleep';
   const visible = state.view.ids.includes(t.id);
-  const cls = `tab s-${st}${t.id === state.activeId ? ' active' : ''}${visible ? ' in-view' : ''}${r?.attn ? ' attn' : ''}${t.color ? ' colored' : ''}${t.projectId ? ' in-proj' : ''}`;
+  const cls = `tab s-${st}${t.id === state.activeId ? ' active' : ''}${visible ? ' in-view' : ''}${r?.attn ? ' attn' : ''}${t.color ? ' colored' : ''}${t.projectId ? ' in-proj' : ''}${t.central ? ' pinned central' : ''}`;
   if (d.className !== cls && !d.classList.contains('drag-over')) d.className = cls;
   if (t.color) d.style.setProperty('--c', t.color); else d.style.removeProperty('--c');
   if (renamingId !== t.id) setText(d.querySelector('.name'), t.title);
@@ -532,7 +533,8 @@ function renderRail() {
   list.innerHTML = '';
   let lastProj = null;
   for (const t of orderedTabs()) {
-    if ((t.projectId || '') !== lastProj) { lastProj = t.projectId || ''; if (list.children.length) { const sep = document.createElement('div'); sep.className = 'rail-sep'; list.appendChild(sep); } }
+    const group = t.central ? '#central' : (t.projectId || '');
+    if (group !== lastProj) { lastProj = group; if (list.children.length) { const sep = document.createElement('div'); sep.className = 'rail-sep'; list.appendChild(sep); } }
     const b = document.createElement('button');
     const st = terms.get(t.id)?.state || 'asleep';
     b.className = `rail-dot s-${st}${t.id === state.activeId ? ' active' : ''}`;
@@ -547,7 +549,7 @@ function renderTabs() {
   const now = Date.now();
   renderRail();
   state.tabs.forEach(t => updateCard(t, now));
-  const desired = [];
+  const desired = [centralTab() ? cardFor(centralTab()) : centralSlot()];
   for (const p of state.projects) {
     const tabs = tabsOf(p.id);
     updateHead(p, tabs, now);
@@ -565,7 +567,7 @@ function renderTabs() {
   for (const [id, d] of cardEls) if (!tabById(id)) { d.remove(); cardEls.delete(id); }
   for (const [id, h] of headEls) if (!projById(id)) { h.remove(); headEls.delete(id); }
   revealActive();
-  $('#side-empty').hidden = state.tabs.length > 0 || state.projects.length > 0;
+  $('#side-empty').hidden = state.tabs.some(t => !t.central) || state.projects.length > 0;
 }
 
 // ---------- inline rename ----------
@@ -754,7 +756,19 @@ function publishStatus() {
 setInterval(publishStatus, 1500);
 
 // central card: a Claude card whose first prompt points it at the status board
-$('#btn-central').addEventListener('click', async () => {
+// pinned row shown at the top of the sidebar while there is no central card yet
+let slotEl = null;
+function centralSlot() {
+  if (slotEl) return slotEl;
+  slotEl = document.createElement('div');
+  slotEl.className = 'tab pinned central s-asleep slot';
+  slotEl.innerHTML = grid9() + '<div class="meta"><div class="name">🧭 中控</div><div class="sub">點一下啟動：替你和所有卡片的 agent 溝通</div></div>';
+  slotEl.title = '開啟中控卡片';
+  slotEl.addEventListener('click', () => openCentral());
+  return slotEl;
+}
+
+async function openCentral() {
   const dir = await api.centralDir();
   const mcp = await api.mcpConfig();   // agentdeck MCP server: list_agents / read_agent / send_to_agent / ...
   // the central agent gets the agentdeck tools both on first start and after every resume
@@ -764,7 +778,7 @@ $('#btn-central').addEventListener('click', async () => {
   const prompt = '你是 Agent Deck 的中控 agent。你有 agentdeck 工具可以和每張卡片裡的 agent 溝通，不論它是 Claude Code、Codex、OpenCode 或 agy：' +
     'list_agents 看所有卡片與狀態、read_agent 看某張卡片最新畫面、send_to_agent 傳訊息給它（預設等它閒下來才送）、wait_for_agent 等它做完並取回結果、message_status 查送達狀態。' +
     `另有狀態看板 ${dir}\\status.md。請先用 list_agents，用中文摘要每張卡片的狀態（哪些在工作、哪些在等我、哪些需要決策或出錯），之後等我指示。`;
-  const existing = state.tabs.find(t => t.title === '中控');
+  const existing = centralTab();
   if (existing) {
     if (!/--mcp-config/.test(existing.resumeCmd || '')) { existing.startCmd = `${base} "${q(prompt)}"`; existing.resumeCmd = `${base} --continue`; saveSoon(); }
     activate(existing.id); return;
@@ -772,12 +786,12 @@ $('#btn-central').addEventListener('click', async () => {
   const tab = {
     id: crypto.randomUUID(), title: '中控', cwd: dir, agent: 'claude', color: '#a78bfa', fontSize: 0,
     startCmd: `${base} "${q(prompt)}"`, resumeCmd: `${base} --continue`, autoRun: true, launched: false,
-    projectId: '', lastActive: Date.now(),
+    projectId: '', lastActive: Date.now(), central: true,
   };
   state.tabs.unshift(tab);
   activate(tab.id);
   startTab(tab);
-});
+}
 
 // ---------- add / edit dialog ----------
 let editing = null;

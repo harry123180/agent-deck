@@ -252,3 +252,10 @@ body.side-collapsed #sidebar { width:0; min-width:0; border-right-width:0; }
 #side-sum { padding:7px 12px; border-top:1px solid var(--line); color:var(--dim); font-size:11px; display:flex; gap:10px; align-items:center; }
 #side-sum b { color:var(--fg); font-weight:600; }
 #side-sum .need { color:var(--warn); font-weight:600; }
+
+/* pinned central card: always first in the sidebar */
+.tab.pinned { position:sticky; top:0; z-index:3; background:#1d2233; border:1px solid #3a3466; border-left:3px solid #a78bfa; margin-bottom:8px; }
+.tab.pinned.active { background:#272a48; border-color:#5b4fa8; border-left-color:#a78bfa; }
+.tab.pinned .name::before { content:"📌 "; font-size:10px; opacity:.7; }
+.tab.pinned.slot { border-style:dashed; border-left-style:solid; opacity:.85; }
+.tab.pinned.slot:hover { opacity:1; background:#22263a; }

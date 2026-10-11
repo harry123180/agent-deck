@@ -139,7 +139,8 @@ function createBus({ writeToCard, file, native = null, claudeLane = () => 'nativ
     const sender = fromName || from || 'unknown Claude session';
     const target = lastSender.get(String(from || '').replace(/^uds:/, '').toLowerCase()) || centralName;
     const list = await roster();
-    const card = list.find(c => !c.external && c.title === target) || list.find(c => !c.external && c.title === centralName);
+    const card = list.find(c => !c.external && c.title === target) || list.find(c => !c.external && c.central) ||
+      list.find(c => !c.external && c.title === centralName);
     if (!card) { inbox.push({ from: sender, text, at: Date.now() }); return { status: 'kept', note: 'no card to hand it to' }; }
     const lane = card.agentKey === 'claude' && native && claudeLane() === 'native' ? 'native' : 'paste';
     const msg = { id: crypto.randomUUID().slice(0, 8), from: sender, toId: card.id, to: card.title, text: String(text).slice(0, 20000), when: 'idle', hops: [],
