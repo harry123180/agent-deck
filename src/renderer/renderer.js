@@ -74,12 +74,19 @@ function ensureTerm(tab) {
     if (e.ctrlKey && e.shiftKey && e.key === 'C') { navigator.clipboard.writeText(term.getSelection()); return false; }
     // xterm would send a raw Ctrl+V to the shell and swallow the browser paste, so read the clipboard here
     if (e.ctrlKey && !e.altKey && (e.key === 'v' || e.key === 'V')) {
-      // text, copied files and screenshots are all read by the main process (the browser clipboard only sees text)
+      // text, copied files and screenshots are all read by the main process (the browser clipboard only sees text).
+      // Cancel the browser's own paste too, or xterm pastes the text a second time from the paste event.
+      e.preventDefault();
+      r.ownPasteAt = Date.now();
       api.clipboardPaste().then(r => { if (r && r.text) term.paste(r.text); }).catch(() => { /* clipboard blocked */ });
       return false;
     }
     return true;
   });
+  // a paste event right after our Ctrl+V handling is the duplicate: drop it before xterm sees it
+  el.addEventListener('paste', e => {
+    if (Date.now() - (r.ownPasteAt || 0) < 1000) { e.preventDefault(); e.stopImmediatePropagation(); }
+  }, true);
   new ResizeObserver(() => fitOne(id)).observe(el);
 
   pane.addEventListener('mousedown', () => { if (state.activeId !== id) focusPane(id); }, true);
