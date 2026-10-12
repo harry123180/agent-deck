@@ -88,7 +88,8 @@ ipcMain.handle('state:load', () => store.load(STATE_FILE()));
 // Markdown file (and JSON) that the central agent reads.
 const CENTRAL_DIR = () => path.join(app.getPath('userData'), 'central');
 const BUS_FILE = () => path.join(app.getPath('userData'), 'bus.json');
-const MCP_SERVER = path.join(__dirname, '..', 'bus', 'mcp-server.js');
+// other programs run this file, so in the installed app it must be the unpacked copy outside app.asar
+const MCP_SERVER = path.join(__dirname, '..', 'bus', 'mcp-server.js').replace(/app\.asar([\\/])/, 'app.asar.unpacked$1');
 const LAUNCHER = () => path.join(CENTRAL_DIR(), 'agentdeck-mcp.cmd');
 // MCP config any agent CLI can load to reach the bus. Runs on Electron's own Node, so no separate Node install is needed.
 function mcpServerSpec() {

@@ -45,7 +45,7 @@ function readCwd(file) {
 
 function runningShells(excludePids) {
   return new Promise(resolve => {
-    execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, 'scan.ps1'), '-Exclude', excludePids.join(',')],
+    execFile('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', path.join(__dirname, 'scan.ps1').replace(/app\.asar([\\/])/, 'app.asar.unpacked$1'), '-Exclude', excludePids.join(',')],
       { timeout: 30000, maxBuffer: 8 * 1024 * 1024, encoding: 'utf8' }, (err, stdout) => {
         if (err) return resolve([]);
         try { resolve(JSON.parse(stdout.replace(/^﻿/, '').trim() || '[]')); } catch { resolve([]); }

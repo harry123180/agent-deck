@@ -5,12 +5,12 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "test": "node test/store.test.js"
+    "test": "node test/store.test.js",
+    "dist": "electron-builder --win nsis --x64"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "electron": "^44.7.0",
     "node-pty": "^1.1.0"
   },
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -18,5 +18,56 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/harry123180/agent-deck.git"
+  },
+  "devDependencies": {
+    "electron-builder": "^25.1.8",
+    "electron": "^44.7.0"
+  },
+  "build": {
+    "appId": "com.harry123180.agentdeck",
+    "productName": "Agent Deck",
+    "copyright": "© harry123180 — PolyForm Noncommercial 1.0.0",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "assets/**/*",
+      "package.json",
+      "LICENSE",
+      "!**/*.test.js",
+      "!node_modules/node-pty/build/Release/obj/**",
+      "!node_modules/node-pty/**/*.{ipdb,iobj,pdb,lib,exp}",
+      "!node_modules/node-pty/deps/**",
+      "!node_modules/node-pty/third_party/**",
+      "!node_modules/node-pty/src/**",
+      "!node_modules/node-pty/prebuilds/{darwin,linux}*/**"
+    ],
+    "asarUnpack": [
+      "src/bus/**",
+      "src/main/scan.ps1",
+      "node_modules/node-pty/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "AgentDeck-Setup-${version}.exe"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Agent Deck",
+      "license": "LICENSE"
+    }
   }
 }

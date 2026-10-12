@@ -26,12 +26,8 @@ Agent Deck 幫你解決這些問題。它是一個 Windows 桌面程式，把每
 
 ## 怎麼開始
 
-1. 安裝 [Node.js](https://nodejs.org/)，然後在這個資料夾執行：
-   ```
-   npm install
-   npm start
-   ```
-   （或直接雙擊 `start.bat`）
+1. 到 [Releases](https://github.com/harry123180/agent-deck/releases) 下載 `AgentDeck-Setup-<版本>.exe`，雙擊安裝（會建立桌面與開始選單捷徑）。
+   安裝檔沒有程式碼簽章，Windows 可能跳出「Windows 已保護您的電腦」：按 **其他資訊 → 仍要執行**。
 2. 按 **＋** 新增卡片：選資料夾、選 agent（Claude Code、Codex、OpenCode…），按儲存。卡片會自動開啟並執行對應的指令。
 3. 想回到之前的工作？按 **⤓ 匯入現有**，它會找出你正在跑的終端機和最近的 Claude 對話，勾選後一鍵加進來。
 
@@ -120,9 +116,14 @@ Claude Code 對收到的訊息有自己的保護，Agent Deck 完全照它的規
 
 ## 系統需求
 
-目前只在 **Windows 10／11** 測試過，macOS 還沒有支援。
+目前只在 **Windows 10／11（x64）** 測試過，macOS 還沒有支援。
+
+中控與 Claude Code 之間的原生傳訊使用逆向得到的非官方協定（見 [docs/claude-cross-session-protocol.md](docs/claude-cross-session-protocol.md)），Claude Code 改版時可能失效。
 
 ## 給開發者
+
+從原始碼執行（需要 [Node.js](https://nodejs.org/)）：`npm install`，然後 `npm start`（或雙擊 `start.bat`）。
+自己打包安裝檔：`npm run dist`，輸出在 `dist/`。
 
 ```
 src/main/        主程序（終端機、存檔、session 掃描）
