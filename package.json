@@ -1,6 +1,6 @@
 {
   "name": "agent-deck",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Tabbed terminal workspace that restores all your agent CLI sessions (claude, codex, opencode, ...) after reboot",
   "main": "src/main/main.js",
   "scripts": {
@@ -20,8 +20,8 @@
     "url": "git+https://github.com/harry123180/agent-deck.git"
   },
   "devDependencies": {
-    "electron-builder": "^25.1.8",
-    "electron": "^44.7.0"
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
   },
   "build": {
     "appId": "com.harry123180.agentdeck",
@@ -68,6 +68,10 @@
       "createStartMenuShortcut": true,
       "shortcutName": "Agent Deck",
       "license": "LICENSE"
+    },
+    "npmRebuild": false,
+    "toolsets": {
+      "nsis": "1.2.1"
     }
   }
 }

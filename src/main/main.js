@@ -19,6 +19,10 @@ const STATE_FILE = () => path.join(app.getPath('userData'), 'state.json');
 const ptys = new Map(); // tab id -> IPty
 let win = null;
 
+// The installed app is named "Agent Deck" and would keep its data in %APPDATA%\Agent Deck; keep one folder
+// (%APPDATA%\agent-deck) for both the installed app and `npm start`, so cards survive switching between them.
+// Set before the single-instance lock, which lives in this folder too.
+if (!app.commandLine.hasSwitch('user-data-dir')) app.setPath('userData', path.join(app.getPath('appData'), 'agent-deck'));
 if (!app.requestSingleInstanceLock()) app.quit();
 app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus(); } });
 
