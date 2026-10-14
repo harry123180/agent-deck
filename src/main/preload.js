@@ -13,6 +13,8 @@ contextBridge.exposeInMainWorld('deck', {
   loadState: () => ipcRenderer.invoke('state:load'),
   saveState: s => ipcRenderer.send('state:save', s),
   pickFolder: start => ipcRenderer.invoke('dialog:folder', start),
+  folderState: p => ipcRenderer.invoke('folder:state', p),
+  makeFolder: p => ipcRenderer.invoke('folder:make', p),
   getAutostart: () => ipcRenderer.invoke('autostart:get'),
   setAutostart: on => ipcRenderer.invoke('autostart:set', on),
   spawn: opts => ipcRenderer.invoke('pty:spawn', opts),

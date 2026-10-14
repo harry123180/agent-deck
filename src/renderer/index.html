@@ -42,7 +42,8 @@
   <form method="dialog" id="dlg-form">
     <h3 id="dlg-title">新增專案</h3>
     <label>資料夾路徑
-      <span class="row"><input id="f-cwd" required placeholder="D:\repos\my-project"><button type="button" id="f-browse">瀏覽…</button></span>
+      <span class="row"><input id="f-cwd" required placeholder="D:\repos\my-project"><button type="button" id="f-browse">瀏覽…</button><button type="button" id="f-newdir" title="選一個上層資料夾，再輸入新資料夾名稱；儲存時自動建立">新資料夾…</button></span>
+      <span class="hint" id="f-cwd-hint"></span>
     </label>
     <label>所屬專案群組 <select id="f-project"></select></label>
     <label>名稱 <input id="f-title" placeholder="預設為資料夾名稱"></label>

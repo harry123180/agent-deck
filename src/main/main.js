@@ -8,7 +8,7 @@ const pty = require('node-pty');
 const store = require('./store');
 const importer = require('./importer');
 const sessions = require('./sessions');
-const { nearestExisting } = require('./paths');
+const { nearestExisting, folderState, makeFolder } = require('./paths');
 const { AGENTS } = require('./agents');
 const { createBus } = require('./bus');
 const ccmsg = require('./ccmsg');
@@ -200,6 +200,8 @@ ipcMain.handle('dialog:folder', async (_e, start) => {
   const r = await dialog.showOpenDialog(win, { properties: ['openDirectory', 'createDirectory'], defaultPath: nearestExisting(start) });
   return r.canceled ? null : r.filePaths[0];
 });
+ipcMain.handle('folder:state', (_e, p) => folderState(p));
+ipcMain.handle('folder:make', (_e, p) => { try { return { ok: true, path: makeFolder(p) }; } catch (err) { return { ok: false, error: err.message }; } });
 ipcMain.handle('autostart:get', () => app.getLoginItemSettings().openAtLogin);
 ipcMain.handle('autostart:set', (_e, on) => { app.setLoginItemSettings({ openAtLogin: !!on }); return app.getLoginItemSettings().openAtLogin; });
 

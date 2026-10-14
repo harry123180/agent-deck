@@ -869,6 +869,21 @@ async function detectSession({ force = false } = {}) {
   hint.textContent = `${kept ? '偵測到' : '已帶入'}此資料夾最近的對話 ${free.id.slice(0, 8)} · ${agoText(free.lastActive)}` +
     (free.title ? ` · ${free.title}` : '') + (kept ? '（你已手動改過指令，未覆蓋；按右側按鈕可套用）' : '');
 }
+// ---- folder field: an existing folder, one to create on save, or a path that can't be used ----
+let folderToken = 0, folderTimer = null;
+function setFolderHint(kind, text) { const h = $('#f-cwd-hint'); h.className = 'hint ' + kind; h.textContent = text; }
+async function checkFolder() {
+  const cwd = $('#f-cwd').value.trim();
+  const token = ++folderToken;
+  if (!cwd) return setFolderHint('', '');
+  const st = await api.folderState(cwd);
+  if (token !== folderToken) return;
+  if (st === 'missing') setFolderHint('new', '這個資料夾還不存在，儲存時會自動建立');
+  else if (st === 'file') setFolderHint('bad', '這個路徑是一個檔案，不是資料夾');
+  else if (st === 'invalid') setFolderHint('bad', '請輸入完整路徑，例如 D:\\repos\\my-project');
+  else setFolderHint('', '');
+}
+const checkFolderLater = () => { clearTimeout(folderTimer); folderTimer = setTimeout(checkFolder, 250); };
 const detectLater = () => { clearTimeout(detectTimer); detectTimer = setTimeout(() => { if (!editing) detectSession(); }, 450); };
 
 function openDialog(tab, projectId = '') {
@@ -890,6 +905,7 @@ function openDialog(tab, projectId = '') {
   $('#f-project').innerHTML = '<option value="">（不分組）</option>' + state.projects.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('');
   $('#f-project').value = tab ? (tab.projectId || '') : projectId;
   refreshTitlePlaceholder();
+  setFolderHint('', ''); if (tab) checkFolder();
   $('#dlg').showModal();
   $('#f-cwd').focus();
   if (!tab && inherited) detectSession();
@@ -900,9 +916,19 @@ $('#f-cancel').addEventListener('click', () => $('#dlg').close());
 $('#f-browse').addEventListener('click', async () => {
   // open the picker where the path field already points (or at the project's folder)
   const p = await api.pickFolder($('#f-cwd').value.trim() || projectCwd($('#f-project').value));
-  if (p) { $('#f-cwd').value = p; cwdAuto = false; refreshTitlePlaceholder(); if (!editing) detectSession(); }
+  if (p) { $('#f-cwd').value = p; cwdAuto = false; refreshTitlePlaceholder(); checkFolder(); if (!editing) detectSession(); }
 });
-$('#f-cwd').addEventListener('input', () => { cwdAuto = false; refreshTitlePlaceholder(); detectLater(); });
+// new folder: pick where it goes, then type its name after the path; saving creates it
+$('#f-newdir').addEventListener('click', async () => {
+  const parent = await api.pickFolder($('#f-cwd').value.trim() || projectCwd($('#f-project').value));
+  if (!parent) return;
+  const f = $('#f-cwd');
+  f.value = parent.replace(/[\\/]+$/, '') + '\\';
+  cwdAuto = false; refreshTitlePlaceholder();
+  f.focus(); f.setSelectionRange(f.value.length, f.value.length);
+  setFolderHint('new', '在後面輸入新資料夾名稱，儲存時會自動建立');
+});
+$('#f-cwd').addEventListener('input', () => { cwdAuto = false; refreshTitlePlaceholder(); checkFolderLater(); detectLater(); });
 $('#f-project').addEventListener('change', () => {
   if (!editing && (cwdAuto || !$('#f-cwd').value.trim())) {
     const c = projectCwd($('#f-project').value);
@@ -919,8 +945,16 @@ $('#f-agent').addEventListener('change', e => {
 });
 for (const id of ['#f-start', '#f-resume']) $(id).addEventListener('input', () => { cmdDirty = true; });
 $('#f-detect').addEventListener('click', () => detectSession({ force: true }));
-$('#dlg-form').addEventListener('submit', () => {
-  const cwd = $('#f-cwd').value.trim().replace(/^"|"$/g, '');
+$('#dlg-form').addEventListener('submit', async e => {
+  e.preventDefault();                                    // the folder check is async: close the dialog ourselves
+  let cwd = $('#f-cwd').value.trim().replace(/^"|"$/g, '').replace(/(?<!^[A-Za-z]:)[\\/]+$/, '');
+  const st = await api.folderState(cwd);
+  if (st === 'missing') {
+    const r = await api.makeFolder(cwd);
+    if (!r.ok) return setFolderHint('bad', `無法建立資料夾：${r.error}`);
+    cwd = r.path;
+  } else if (st !== 'dir') { await checkFolder(); return $('#f-cwd').focus(); }
+  $('#dlg').close();
   const data = {
     cwd, title: $('#f-title').value.trim() || autoTitle(cwd, $('#f-project').value), agent: $('#f-agent').value,
     startCmd: $('#f-start').value.trim(), resumeCmd: $('#f-resume').value.trim(), autoRun: $('#f-auto').checked,

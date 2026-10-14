@@ -3,7 +3,7 @@ const assert = require('assert');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
-const { nearestExisting } = require('../src/main/paths');
+const { nearestExisting, folderState, makeFolder } = require('../src/main/paths');
 
 const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentdeck-paths-'));
 const sub = path.join(dir, 'proj', 'src');
@@ -19,4 +19,17 @@ same(nearestExisting(path.join(dir, 'file.txt')), dir);               // a file 
 assert.strictEqual(nearestExisting(''), undefined);                   // nothing typed -> picker default
 assert.strictEqual(nearestExisting(undefined), undefined);
 assert.strictEqual(nearestExisting(42), undefined);
+
+assert.strictEqual(folderState(sub), 'dir');
+assert.strictEqual(folderState(path.join(dir, 'file.txt')), 'file');
+assert.strictEqual(folderState(path.join(dir, 'new')), 'missing');
+assert.strictEqual(folderState('relative\\folder'), 'invalid');
+assert.strictEqual(folderState(''), 'invalid');
+const made = makeFolder(`"${path.join(dir, 'new', 'deep')}"`);       // quotes stripped, parents created
+same(made, path.join(dir, 'new', 'deep'));
+assert.strictEqual(folderState(made), 'dir');
+same(makeFolder(sub), sub);                                           // existing folder is fine
+assert.throws(() => makeFolder(path.join(dir, 'file.txt')));
+assert.throws(() => makeFolder('relative'));
+fs.rmSync(dir, { recursive: true, force: true });
 console.log('paths tests passed');

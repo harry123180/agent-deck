@@ -259,3 +259,8 @@ body.side-collapsed #sidebar { width:0; min-width:0; border-right-width:0; }
 .tab.pinned .name::before { content:"📌 "; font-size:10px; opacity:.7; }
 .tab.pinned.slot { border-style:dashed; border-left-style:solid; opacity:.85; }
 .tab.pinned.slot:hover { opacity:1; background:#22263a; }
+
+/* folder field: says when the typed folder will be created, or why it can't be */
+#f-cwd-hint { display:block; color:var(--dim); font-size:11px; line-height:1.4; min-height:15px; margin-top:3px; }
+#f-cwd-hint.new { color:var(--ok); }
+#f-cwd-hint.bad { color:var(--bad); }
