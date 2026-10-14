@@ -29,6 +29,7 @@ Agent Deck 幫你解決這些問題。它是一個 Windows 桌面程式，把每
 1. 到 [Releases](https://github.com/harry123180/agent-deck/releases) 下載 `AgentDeck-Setup-<版本>.exe`，雙擊安裝（會建立桌面與開始選單捷徑）。
    安裝檔沒有程式碼簽章，Windows 可能跳出「Windows 已保護您的電腦」：按 **其他資訊 → 仍要執行**。
 2. 按 **＋** 新增卡片：選資料夾、選 agent（Claude Code、Codex、OpenCode…），按儲存。卡片會自動開啟並執行對應的指令。
+   還沒有資料夾？直接輸入新路徑，或按 **新資料夾…** 選好位置再打名稱，儲存時會自動建立。
 3. 想回到之前的工作？按 **⤓ 匯入現有**，它會找出你正在跑的終端機和最近的 Claude 對話，勾選後一鍵加進來。
 
 ## 基本操作
@@ -51,7 +52,7 @@ Claude Code、Codex、OpenCode、Gemini CLI、agy，以及任何能在終端機�
 
 ## 🧭 中控 Agent：讓 agent 之間互相溝通（跨平台）
 
-按側欄下方的 **🧭 中控**，會開一張 Claude Code 卡片當「中控」。它能看到每張卡片在做什麼，也能把訊息送給任何一張卡片裡的 agent，不論那張是 Claude Code、Codex 還是 OpenCode。卡片裡的 agent 也能回覆中控或傳給彼此。
+側欄最上方固定有一張 **🧭 中控** 卡片，點一下就會開一個 Claude Code 當「中控」。它能看到每張卡片在做什麼，也能把訊息送給任何一張卡片裡的 agent，不論那張是 Claude Code、Codex 還是 OpenCode。卡片裡的 agent 也能回覆中控或傳給彼此。
 
 中控可以用的工具（agentdeck MCP）：
 
@@ -128,6 +129,7 @@ Claude Code 對收到的訊息有自己的保護，Agent Deck 完全照它的規
 ```
 src/main/        主程序（終端機、存檔、session 掃描）
 src/renderer/    畫面
+src/bus/         agentdeck MCP 伺服器（中控與卡片之間傳訊的工具）
 test/            單元測試：node test/<name>.test.js
 scripts/         開發用腳本（產生圖示）
 ```
