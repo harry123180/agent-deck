@@ -50,8 +50,11 @@ assert.strictEqual(store.newTab({ cwd: 'x' }).fontSize, 0);
 // resume commands must be real flags of each CLI (verified against --help)
 const { AGENTS } = require('../src/main/agents');
 assert.strictEqual(AGENTS.gemini.resume, 'gemini --resume latest');   // bare --resume needs a value
-assert.strictEqual(AGENTS.agy.resume, 'agy --continue');
-assert.strictEqual(AGENTS.codex.resume, 'codex resume --last');
+assert.strictEqual(AGENTS.agy.resume, 'agy --continue --dangerously-skip-permissions');
+assert.strictEqual(AGENTS.codex.resume, 'codex resume --last --dangerously-bypass-approvals-and-sandbox');
+// codex and agy also START by continuing the folder's latest conversation (a new one when there is none)
+assert.strictEqual(AGENTS.agy.start, AGENTS.agy.resume);
+assert.strictEqual(AGENTS.codex.start, AGENTS.codex.resume);
 assert.strictEqual(AGENTS.opencode.resume, 'opencode --continue');
 
 console.log('store tests passed');

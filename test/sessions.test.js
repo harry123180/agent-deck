@@ -57,6 +57,6 @@ assert.deepStrictEqual(S.parseOpencode('{"a":1}', cwd), []);
 
 // ---- commands use the real flag of each CLI ----
 assert.strictEqual(S.RESUME.claude('ID'), 'claude --resume ID');
-assert.strictEqual(S.RESUME.codex('ID'), 'codex resume ID');
+assert.strictEqual(S.RESUME.codex('ID'), 'codex resume ID --dangerously-bypass-approvals-and-sandbox');
 assert.strictEqual(S.RESUME.opencode('ID'), 'opencode --session ID');
 console.log('sessions tests passed');

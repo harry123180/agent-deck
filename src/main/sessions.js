@@ -8,6 +8,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFile } = require('child_process');
+const { CODEX_FULL } = require('./agents');
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const norm = p => String(p || '').replace(/[\\/]+$/, '').replace(/\//g, '\\').toLowerCase();
@@ -117,7 +118,7 @@ function opencodeSessions(cwd) {
 // ---- public ----
 const RESUME = {
   claude: id => `claude --resume ${id}`,
-  codex: id => `codex resume ${id}`,
+  codex: id => `codex resume ${id} ${CODEX_FULL}`,
   opencode: id => `opencode --session ${id}`,
 };
 
